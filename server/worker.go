@@ -142,7 +142,7 @@ func main() {
     rpc.Register(NewSecretStringOperations())
     
     var err error
-    listener, err = net.Listen("tcp", "localhost:8030")
+    listener, err = net.Listen("tcp", "0.0.0.0:8030")
     if err != nil {
         fmt.Printf("Error starting server: %v\n", err)
         return

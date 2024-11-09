@@ -23,7 +23,7 @@ func dialWorker(workerConfig WorkerConfig) (*rpc.Client, error){
     addr := fmt.Sprintf("%s:8030", workerConfig.IpAddr)
     fmt.Printf("connect to %s\n", addr)
     rpcClient, err := rpc.Dial("tcp", addr)
-    fmt.Printf("rpcClient: %v\n", rpcClient)
+    
 
     if err != nil {
         return nil, err
@@ -173,7 +173,7 @@ func main() {
     rpc.Register(NewSecretStringOperations())
     
     var err error
-    listener, err = net.Listen("tcp", "0.0.0.0:8030")
+    listener, err = net.Listen("tcp", "localhost:8030")
     if err != nil {
         fmt.Printf("Error starting server: %v\n", err)
         return
