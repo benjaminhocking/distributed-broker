@@ -355,6 +355,7 @@ func (s *SecretStringOperations) Pause(req stubs.StateRequest, res *stubs.StateR
     } else {
         res.Message = "Continuing"
     }
+    fmt.Println("PAUSE response sent")
     return nil
 }
 
