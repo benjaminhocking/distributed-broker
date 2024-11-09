@@ -84,6 +84,10 @@ func nextState(world [][]uint8, region stubs.CoordinatePair) [][]uint8 {
             }
         }
     }
+    fmt.Printf("newWorld: \n")
+    for _, row := range newWorld {
+        fmt.Printf("%v\n", row)
+    }
     return newWorld
 }
 
