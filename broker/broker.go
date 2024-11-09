@@ -268,6 +268,10 @@ func (s *SecretStringOperations) Start(req stubs.BrokerRequest, res *stubs.Respo
 					CurrentTurn: t,
 				}
 				responseChan <- state
+            
+            case <-s.stopChannel:
+				fmt.Printf("Stopping game\n")
+				return world
                 
             default:
                 if !s.isPaused{
@@ -319,8 +323,19 @@ func (s *SecretStringOperations) Save(req stubs.StateRequest, res *stubs.StateRe
     return nil
 }
 
-func (s *SecretStringOperations) Quit(req stubs.StateRequest, res *stubs.StateResponse) (err error) {
-    res.Message = "Quitting"
+func (s *SecretStringOperations) Kill(req stubs.StateRequest, res *stubs.StateResponse) (err error) {
+    fmt.Println("Kill")
+    fmt.Println("Shutting down server...")
+    // Close the listener to stop accepting new connections
+    if listener != nil {
+        listener.Close()
+    }
+
+    // Signal any running games to stop
+    s.stopChannel <- true
+    // Give a small delay for cleanup
+    //time.Sleep(100 * time.Millisecond)
+    defer os.Exit(0)
     return nil
 }
 
