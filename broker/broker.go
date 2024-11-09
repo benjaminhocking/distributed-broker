@@ -14,17 +14,15 @@ import (
 var (
 	listener net.Listener
 	shutdown = make(chan bool)
+    instances = []string{"35.173.134.238", "3.89.9.195", "34.238.50.127", "98.84.152.24"}
 )
 
-instances := ["35.173.134.238", "3.89.9.195", "34.238.50.127", "98.84.152.24"]
 
-func dialWorker(workerConfig WorkerConfig){
+func dialWorker(workerConfig WorkerConfig) (*rpc.Client, error){
     var err error
     addr := fmt.Sprintf("%s:8030", workerConfig.IpAddr)
-    fmt.Println("connect to %s", addr)
-    once.Do(func() {
-        rpcClient, err = rpc.Dial("tcp", addr)
-    })
+    fmt.Printf("connect to %s\n", addr)
+    rpcClient, err := rpc.Dial("tcp", addr)
 
     if err != nil {
         return nil, err
@@ -49,13 +47,8 @@ func NewSecretStringOperations() *SecretStringOperations {
     }
 }
 
-type CoordinatePair struct{
-    X1, Y1 int
-    X2, Y2 int
-}
-
 type WorkerConfig struct{
-    Region CoordinatePair
+    Region stubs.CoordinatePair
     IpAddr string
 }
 
@@ -71,27 +64,37 @@ type WorldState struct {
 
 type WorldSlice struct{
     World       [][]uint8
-    Region      CoordinatePair
+    Region      stubs.CoordinatePair
 }
 
-func workerNextState(workerConfig WorkerConfig, world [][]uint8) [][]uint8{
+func workerNextState(workerConfig WorkerConfig, world [][]uint8, imageWidth, imageHeight int) [][]uint8{
+    fmt.Println("WorkerNextState")
+    fmt.Printf("WorkerConfig: %v\n", workerConfig)
+    fmt.Printf("Region: %v\n", workerConfig.Region)
     client, err := dialWorker(workerConfig)
     if err == nil{
         request := stubs.WorkerRequest{
             World:world, 
             Region: workerConfig.Region,
-            ImageWidth: 
+            ImageWidth: imageWidth,
+            ImageHeight: imageHeight,
         }
+        response := new(stubs.Response)
+        client.Call("SecretStringOperations.NextState", request, response)
+        return response.UpdatedWorld
+    }else{
+        fmt.Printf("Error dialing worker: %v\n", err)
     }
+    return nil
 }
 
-func buildWorkers(regions []CoordinatePair) []WorkerConfig {
-    workers := []string{}
+func buildWorkers(regions []stubs.CoordinatePair) []WorkerConfig {
+    workers := []WorkerConfig{}
     var worker WorkerConfig
     for i, region := range regions{
         worker = WorkerConfig{
             Region: region,
-            IpAddr: instances[i]
+            IpAddr: instances[i],
         }
         workers = append(workers, worker)
     }
@@ -101,10 +104,10 @@ func buildWorkers(regions []CoordinatePair) []WorkerConfig {
 func (s *SecretStringOperations) Start(req stubs.BrokerRequest, res *stubs.Response) (err error) {
 	//world := req.World
     regions := splitBoard(req.ImageHeight, req.ImageWidth, req.Workers)
-    fmt.Println(regions)
+    fmt.Printf("Regions: %v\n", regions)
     workers := buildWorkers(regions)
 
-    var world [][]uint8
+    //var world [][]uint8
     var worldSlices []WorldSlice
     for t := 0; t < req.Turns; t++ {
         worldSlices = []WorldSlice{}
@@ -113,7 +116,7 @@ func (s *SecretStringOperations) Start(req stubs.BrokerRequest, res *stubs.Respo
         for _, worker := range workers {
             // Launch a goroutine for each worker
             go func(w WorkerConfig) {
-                worldSlice := workerNextState(w, req.World)
+                worldSlice := workerNextState(w, req.World, req.ImageWidth, req.ImageHeight)
                 resultChan <- WorldSlice{World: worldSlice, Region: w.Region}
             }(worker)
         }
@@ -130,12 +133,12 @@ func (s *SecretStringOperations) Start(req stubs.BrokerRequest, res *stubs.Respo
 	return nil
 }
 
-func splitBoard(H, W, workers int) []CoordinatePair {
+func splitBoard(H, W, workers int) []stubs.CoordinatePair {
     if workers <= 0 {
         return nil // Return nil if workers is zero or negative
     }
     
-    var regions []CoordinatePair
+    var regions []stubs.CoordinatePair
     rowsPerWorker := H / workers     // Base number of rows each worker gets
     extraRows := H % workers         // Rows that need to be distributed
 
@@ -148,7 +151,7 @@ func splitBoard(H, W, workers int) []CoordinatePair {
         }
 
         // Append the region for this worker
-        regions = append(regions, CoordinatePair{
+        regions = append(regions, stubs.CoordinatePair{
             X1: 0, Y1: startRow,
             X2: W - 1, Y2: endRow - 1,
         })

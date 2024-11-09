@@ -9,7 +9,6 @@ import (
 	"uk.ac.bris.cs/gameoflife/stubs"
 	"uk.ac.bris.cs/gameoflife/util"
 	"fmt"
-	"os"
 	"strings"
 )
 
@@ -71,8 +70,8 @@ func nextState(world [][]uint8, imageWidth, imageHeight int, region CoordinatePa
     }
 
     // Update each cell based on Game of Life rules
-    for y := region.Y0; y <= region.Y1; y++ {
-        for x := region.X0; x <= region.X1; x++ {
+    for y := region.Y1; y <= region.Y2; y++ {
+        for x := region.X1; x <= region.X2; x++ {
             neighbors := countLiveNeighbors(world, x, y, w, h)
             
             switch {
@@ -86,8 +85,8 @@ func nextState(world [][]uint8, imageWidth, imageHeight int, region CoordinatePa
     return newWorld
 }
 
-func (s *SecretStringOperations) NextState(req stubs.WorkerRequest, res *stubs.Response){
-	world = nextState(req.World, req.ImageWidth, req.ImageHeight, req.Region)
+func (s *SecretStringOperations) NextState(req stubs.WorkerRequest, res *stubs.Response) (err error) {
+	world := nextState(req.World, req.ImageWidth, req.ImageHeight, req.Region)
 	res.UpdatedWorld = world
 	return nil
 }
