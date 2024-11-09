@@ -8,7 +8,7 @@ import (
 	"time"
 	"uk.ac.bris.cs/gameoflife/stubs"
 	"uk.ac.bris.cs/gameoflife/util"
-	"fmt"
+	//"fmt"
 	"strings"
 )
 
@@ -159,7 +159,7 @@ func main() {
     }
     defer listener.Close()
     
-    //fmt.Printf("Server is listening on port %s...\n", *pAddr)
+    fmt.Printf("Server is listening on port %s...\n", *pAddr)
     
     // Create a separate goroutine for accepting connections
     go func() {
