@@ -31,7 +31,7 @@ var (
 func getRPCClient() (*rpc.Client, error) {
     var err error
     once.Do(func() {
-        rpcClient, err = rpc.Dial("tcp", "54.164.86.59:8030")
+        rpcClient, err = rpc.Dial("tcp", "18.205.163.67:8030")
     })
     
     if err != nil {
@@ -158,7 +158,8 @@ func distributor(p Params, c DistributorChannels) {
 
 	fmt.Println("before world")
 	fmt.Println("writeToFile: ", writeToFile)
-	world = doAllTurnsBroker(world, p)
+	var turns int
+	world, turns = doAllTurnsBroker(world, p)
 	fmt.Println("after world")
 	if(world == nil){
 		fmt.Println("world is nil")
@@ -180,7 +181,7 @@ func distributor(p Params, c DistributorChannels) {
 		fmt.Println("writeToFile")
 		//output the state of the board after all turns have been completed as a PGM image
 		c.ioCommand <- ioOutput
-		filename = fmt.Sprintf("%dx%dx%d", p.ImageHeight, p.ImageWidth, completedTurns)
+		filename = fmt.Sprintf("%dx%dx%d", p.ImageHeight, p.ImageWidth, turns)
 		fmt.Println("filename: ", filename)
 		c.ioFilename <- filename
 		for y := 0; y < H; y++ {
@@ -368,12 +369,12 @@ func calculateAliveCellsNode() (int, int) {
 	return response.CellsAlive, response.Turns
 }
 
-func doAllTurnsBroker(world [][]uint8, p Params) [][]uint8 {
+func doAllTurnsBroker(world [][]uint8, p Params) ([][]uint8, int) {
 	// Connect to RPC server
 	client, err := getRPCClient()//rpc.Dial("tcp", "localhost:8030")
 	if err != nil {
 		// If we can't connect, fall back to local processing
-		return nil
+		return nil, 0
 	}
 
 	fmt.Println("Sending request to broker")
@@ -396,10 +397,10 @@ func doAllTurnsBroker(world [][]uint8, p Params) [][]uint8 {
 	if err != nil {
 		fmt.Printf("Server connection closed\n")
 		fmt.Println("error: ", err)
-		return response.UpdatedWorld
+		return response.UpdatedWorld, response.Turns
 	}
 
-	return response.UpdatedWorld
+	return response.UpdatedWorld, response.Turns
 }
 
 // nextState calculates the next state of the board
