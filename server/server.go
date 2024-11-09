@@ -175,7 +175,6 @@ func (s *SecretStringOperations) AliveCellsCount(req stubs.AliveCellsCountReques
 	return nil
 }
 
-
 // State handles various game control commands received from the client:
 // - "save": Captures and returns the current world state and turn number
 // - "quit": Signals the game to stop execution
