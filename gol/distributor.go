@@ -207,7 +207,7 @@ func pause(p Params,c DistributorChannels, completedTurns int) (int){
 
 		fmt.Println("response: ", response)
 
-		client.Call("SecretStringOperations.State", request, response)
+		client.Call("SecretStringOperations.Pause", request, response)
 
 		fmt.Println("Response: ", response.Message)
 

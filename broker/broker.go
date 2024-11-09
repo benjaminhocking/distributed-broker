@@ -270,25 +270,27 @@ func (s *SecretStringOperations) Start(req stubs.BrokerRequest, res *stubs.Respo
 				responseChan <- state
                 
             default:
-                worldSlices = []WorldSlice{}
-                resultChan := make(chan WorldSlice, len(workers))
+                if !s.isPaused{
+                    worldSlices = []WorldSlice{}
+                    resultChan := make(chan WorldSlice, len(workers))
 
-                for _, worker := range workers {
-                    // Launch a goroutine for each worker
-                    go func(w WorkerConfig) {
-                        worldSlice := workerNextState(w, world, req.ImageWidth, req.ImageHeight)
-                        resultChan <- WorldSlice{World: worldSlice, Region: w.Region}
-                    }(worker)
-                }
+                    for _, worker := range workers {
+                        // Launch a goroutine for each worker
+                        go func(w WorkerConfig) {
+                            worldSlice := workerNextState(w, world, req.ImageWidth, req.ImageHeight)
+                            resultChan <- WorldSlice{World: worldSlice, Region: w.Region}
+                        }(worker)
+                    }
 
-                // Collect the results from all goroutines
-                for i := 0; i < len(workers); i++ {
-                    ws := <-resultChan
-                    worldSlices = append(worldSlices, ws)
+                    // Collect the results from all goroutines
+                    for i := 0; i < len(workers); i++ {
+                        ws := <-resultChan
+                        worldSlices = append(worldSlices, ws)
+                    }
+                    
+                    world = mergeWorldSlices(worldSlices, world)
+                    currentTurn++
                 }
-                
-                world = mergeWorldSlices(worldSlices, world)
-                currentTurn++
         }
     }
 
