@@ -54,8 +54,8 @@ const (
 
 
 // nextState calculates the next state of the world according to Game of Life rules
-func nextState(world [][]uint8, imageWidth, imageHeight int, region stubs.CoordinatePair) [][]uint8 {
-    h, w := imageHeight, imageWidth
+func nextState(world [][]uint8, region stubs.CoordinatePair) [][]uint8 {
+    h, w := len(world), len(world[0])
     
     // Initialize new world state
     newWorld := make([][]uint8, h)
@@ -65,8 +65,9 @@ func nextState(world [][]uint8, imageWidth, imageHeight int, region stubs.Coordi
     }
 
     // Update each cell based on Game of Life rules
-    for y := region.Y1; y <= region.Y2; y++ {
-        for x := region.X1; x <= region.X2; x++ {
+    // do not update the halo region
+    for y := 1; y < h; y++ {
+        for x := 1; x < w; x++ {
             neighbors := countLiveNeighbors(world, x, y, w, h)
             
             switch {
@@ -81,7 +82,7 @@ func nextState(world [][]uint8, imageWidth, imageHeight int, region stubs.Coordi
 }
 
 func (s *SecretStringOperations) NextState(req stubs.WorkerRequest, res *stubs.Response) (err error) {
-	world := nextState(req.World, req.ImageWidth, req.ImageHeight, req.Region)
+	world := nextState(req.World, req.Region)
 	res.UpdatedWorld = world
 	return nil
 }

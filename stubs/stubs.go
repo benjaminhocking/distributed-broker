@@ -34,8 +34,6 @@ type BrokerRequest struct {
 type WorkerRequest struct{
 	World	 [][]uint8
 	Region	 CoordinatePair
-	ImageWidth int
-	ImageHeight int
 }
 
 type AliveCellsCountRequest struct {}

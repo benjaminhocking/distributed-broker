@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/rpc"
 	"uk.ac.bris.cs/gameoflife/stubs"
+    "sync"
 )
 
 var (
@@ -69,13 +70,41 @@ type WorldSlice struct{
     Region      stubs.CoordinatePair
 }
 
+func getWorldRegion(world [][]uint8, region stubs.CoordinatePair) [][]uint8{
+    // this function returns a slice of the world that corresponds to the region for this worker
+    // it includes the halo region around the area.
+    // Calculate dimensions of the region including halo
+    height := region.Y2 - region.Y1 + 3  // +3 for halo (1 above, 1 below)
+    width := region.X2 - region.X1 + 3   // +3 for halo (1 left, 1 right)
+    
+    // Create slice to hold the region
+    regionSlice := make([][]uint8, height)
+    for i := range regionSlice {
+        regionSlice[i] = make([]uint8, width)
+    }
+
+    worldHeight := len(world)
+    worldWidth := len(world[0])
+
+    // Copy region data including halo
+    for y := 0; y < height; y++ {
+        for x := 0; x < width; x++ {
+            // Calculate world coordinates with wrapping
+            worldY := ((region.Y1 - 1 + y) + worldHeight) % worldHeight
+            worldX := ((region.X1 - 1 + x) + worldWidth) % worldWidth
+            regionSlice[y][x] = world[worldY][worldX]
+        }
+    }
+
+    return regionSlice
+
+}
+
 func workerNextState(workerConfig WorkerConfig, world [][]uint8, imageWidth, imageHeight int) [][]uint8{    
     if workerConfig.Client != nil{
         request := stubs.WorkerRequest{
-            World:world, 
+            World:getWorldRegion(world, workerConfig.Region), 
             Region: workerConfig.Region,
-            ImageWidth: imageWidth,
-            ImageHeight: imageHeight,
         }
         response := new(stubs.Response)
         workerConfig.Client.Call("SecretStringOperations.NextState", request, response)
@@ -172,14 +201,46 @@ func (s *SecretStringOperations) AliveCellsCount(req stubs.AliveCellsCountReques
 }
 
 func mergeWorldSlices(worldSlices []WorldSlice, world [][]uint8) [][]uint8 {
-   for _, ws := range worldSlices{
-    for y := ws.Region.Y1; y <= ws.Region.Y2; y++{
-        for x := ws.Region.X1; x <= ws.Region.X2; x++{
-            world[y][x] = ws.World[y - ws.Region.Y1][x - ws.Region.X1]
+    if len(worldSlices) == 0 {
+        return nil
+    }
+
+    // Determine total dimensions
+    totalHeight := 0
+    width := worldSlices[0].Region.X2 - worldSlices[0].Region.X1 + 1
+    for _, slice := range worldSlices {
+        if slice.Region.Y2+1 > totalHeight {
+            totalHeight = slice.Region.Y2 + 1
         }
     }
-   }
-   return world
+
+    // Initialize merged world
+    mergedWorld := make([][]uint8, totalHeight)
+    for i := range mergedWorld {
+        mergedWorld[i] = make([]uint8, width)
+    }
+
+    // Use wait group to synchronize goroutines
+    var wg sync.WaitGroup
+
+    // Copy slices concurrently
+    for _, slice := range worldSlices {
+        wg.Add(1)
+        sliceHeight := len(slice.World)
+        sliceWidth := len(slice.World[0])
+        go func(ws WorldSlice) {
+            defer wg.Done()
+            region := ws.Region
+            for y := region.Y1; y <= region.Y2; y++ {
+                copy(mergedWorld[y][region.X1:region.X2+1], ws.World[y-region.Y1+1][0:sliceWidth])
+            }
+        }(slice)
+    }
+
+    // Wait for all goroutines to finish
+    wg.Wait()
+
+    return mergedWorld
 }
 
 func splitBoard(H, W, workers int) []stubs.CoordinatePair {
