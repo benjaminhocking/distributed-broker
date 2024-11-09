@@ -56,9 +56,9 @@ const (
 // nextState calculates the next state of the world according to Game of Life rules
 func nextState(world [][]uint8, region stubs.CoordinatePair) [][]uint8 {
     //fmt.Printf("world: \n")
-    //for _, row := range world {
-    //    fmt.Printf("%v\n", row)
-    //}
+    for _, row := range world {
+        //fmt.Printf("%v\n", row)
+    }
     h, w := len(world), len(world[0])
     //fmt.Printf("h: %v, w: %v\n", h, w)
     
@@ -86,9 +86,9 @@ func nextState(world [][]uint8, region stubs.CoordinatePair) [][]uint8 {
         }
     }
     //fmt.Printf("newWorld: \n")
-    //for _, row := range newWorld {
-    //    //fmt.Printf("%v\n", row)
-    //}
+    for _, row := range newWorld {
+        //fmt.Printf("%v\n", row)
+    }
     return newWorld
 }
 
@@ -159,7 +159,7 @@ func main() {
     }
     defer listener.Close()
     
-    fmt.Printf("Server is listening on port %s...\n", *pAddr)
+    //fmt.Printf("Server is listening on port %s...\n", *pAddr)
     
     // Create a separate goroutine for accepting connections
     go func() {
