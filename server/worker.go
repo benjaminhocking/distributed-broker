@@ -52,14 +52,9 @@ const (
     Alive uint8 = 255
 )
 
-type CoordinatePair struct{
-    X1, Y1 int
-    X2, Y2 int
-}
-
 
 // nextState calculates the next state of the world according to Game of Life rules
-func nextState(world [][]uint8, imageWidth, imageHeight int, region CoordinatePair) [][]uint8 {
+func nextState(world [][]uint8, imageWidth, imageHeight int, region stubs.CoordinatePair) [][]uint8 {
     h, w := imageHeight, imageWidth
     
     // Initialize new world state
