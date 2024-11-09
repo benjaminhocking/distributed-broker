@@ -266,7 +266,7 @@ func (s *SecretStringOperations) Start(req stubs.BrokerRequest, res *stubs.Respo
 				fmt.Println("turn: ", t)
 				state := WorldState{
 					World: world,
-					CurrentTurn: t,
+					CurrentTurn: currentTurn,
 				}
 				responseChan <- state
             
