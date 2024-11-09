@@ -150,70 +150,6 @@ func calculateAliveCells(world [][]uint8) int {
     return aliveCount
 }
 
-func (s *SecretStringOperations) Start(req stubs.BrokerRequest, res *stubs.Response) (err error) {
-    regions := splitBoard(req.ImageHeight, req.ImageWidth, req.Workers)
-    fmt.Printf("Regions: %v\n", regions)
-    workers := buildWorkers(regions)
-    fmt.Printf("Workers: %v\n", workers)
-
-    fmt.Printf("world: \n")
-    fmt.Printf("turns: %d\n", req.Turns)
-    //for _, row := range req.World {
-    //    fmt.Println(row)
-    //}
-
-    world := req.World
-    var worldSlices []WorldSlice
-    currentTurn := 0
-    
-    for t := 0; t < req.Turns; t++ {
-        select {
-        case responseChan := <-s.aliveCellsChannel:
-            // Count alive cells in current world state
-            aliveCount := calculateAliveCells(world)
-            
-            responseChan <- GameState{
-                AliveCells: aliveCount,
-                CurrentTurn: currentTurn,
-            }
-            
-        default:
-            worldSlices = []WorldSlice{}
-            resultChan := make(chan WorldSlice, len(workers))
-
-            for _, worker := range workers {
-                // Launch a goroutine for each worker
-                go func(w WorkerConfig) {
-                    worldSlice := workerNextState(w, world, req.ImageWidth, req.ImageHeight)
-                    resultChan <- WorldSlice{World: worldSlice, Region: w.Region}
-                }(worker)
-            }
-
-            // Collect the results from all goroutines
-            for i := 0; i < len(workers); i++ {
-                ws := <-resultChan
-                worldSlices = append(worldSlices, ws)
-            }
-            
-            world = mergeWorldSlices(worldSlices, world)
-            currentTurn++
-        }
-    }
-
-    res.UpdatedWorld = world
-
-    return nil
-}
-
-func (s *SecretStringOperations) AliveCellsCount(req stubs.AliveCellsCountRequest, res *stubs.AliveCellsCountResponse) (err error) {
-    responseChannel := make(chan GameState)
-    s.aliveCellsChannel <- responseChannel
-    state := <-responseChannel
-    res.CellsAlive = state.AliveCells
-    res.Turns = state.CurrentTurn
-    return nil
-}
-
 func mergeWorldSlices(worldSlices []WorldSlice, world [][]uint8) [][]uint8 {
     if len(worldSlices) == 0 {
         return nil
@@ -295,6 +231,118 @@ func splitBoard(H, W, workers int) []stubs.CoordinatePair {
     return regions
 }
 
+func (s *SecretStringOperations) Start(req stubs.BrokerRequest, res *stubs.Response) (err error) {
+    regions := splitBoard(req.ImageHeight, req.ImageWidth, req.Workers)
+    fmt.Printf("Regions: %v\n", regions)
+    workers := buildWorkers(regions)
+    fmt.Printf("Workers: %v\n", workers)
+
+    fmt.Printf("world: \n")
+    fmt.Printf("turns: %d\n", req.Turns)
+    //for _, row := range req.World {
+    //    fmt.Println(row)
+    //}
+
+    world := req.World
+    var worldSlices []WorldSlice
+    currentTurn := 0
+    
+    for t := 0; t < req.Turns; t++ {
+        select {
+        case responseChan := <-s.aliveCellsChannel:
+            // Count alive cells in current world state
+            aliveCount := calculateAliveCells(world)
+            
+            responseChan <- GameState{
+                AliveCells: aliveCount,
+                CurrentTurn: currentTurn,
+            }
+            
+        default:
+            worldSlices = []WorldSlice{}
+            resultChan := make(chan WorldSlice, len(workers))
+
+            for _, worker := range workers {
+                // Launch a goroutine for each worker
+                go func(w WorkerConfig) {
+                    worldSlice := workerNextState(w, world, req.ImageWidth, req.ImageHeight)
+                    resultChan <- WorldSlice{World: worldSlice, Region: w.Region}
+                }(worker)
+            }
+
+            // Collect the results from all goroutines
+            for i := 0; i < len(workers); i++ {
+                ws := <-resultChan
+                worldSlices = append(worldSlices, ws)
+            }
+            
+            world = mergeWorldSlices(worldSlices, world)
+            currentTurn++
+        }
+    }
+
+    res.UpdatedWorld = world
+
+    return nil
+}
+
+func (s *SecretStringOperations) AliveCellsCount(req stubs.AliveCellsCountRequest, res *stubs.AliveCellsCountResponse) (err error) {
+    responseChannel := make(chan GameState)
+    s.aliveCellsChannel <- responseChannel
+    state := <-responseChannel
+    res.CellsAlive = state.AliveCells
+    res.Turns = state.CurrentTurn
+    return nil
+}
+
+func (s *SecretStringOperations) State(req stubs.StateRequest, res *stubs.StateResponse) (err error) {
+    res.Message = "Continuing"
+    return nil
+}
+
+func (s *SecretStringOperations) Quit(req stubs.StateRequest, res *stubs.StateResponse) (err error) {
+    res.Message = "Quitting"
+    return nil
+}
+
+func (s *SecretStringOperations) Pause(req stubs.StateRequest, res *stubs.StateResponse) (err error) {
+    //make sure the game has started
+    if(s.worldStateChannel == nil){
+        fmt.Println("Game has not started, but pause command received")
+    }
+
+    fmt.Println("PAUSE")
+    fmt.Println("isPaused: ", s.isPaused)
+    var respWorld [][]uint8
+    var respTurns int
+    
+    if(!s.isPaused){
+        fmt.Println("isPaused: ", s.isPaused)
+        worldStateChannel := make(chan WorldState)
+        fmt.Println("worldStateChannel created")
+        s.worldStateChannel <- worldStateChannel
+        fmt.Println("worldStateChannel sent")
+        worldState := <-worldStateChannel
+        fmt.Println("worldState received")
+        respWorld = worldState.World
+        respTurns = worldState.CurrentTurn
+    }else{
+        respWorld = nil
+        respTurns = 0
+    }
+
+    s.isPaused = !s.isPaused
+    s.pauseChannel <- s.isPaused
+    
+    res.World = respWorld
+    res.Turns = respTurns
+    
+    if s.isPaused {
+        res.Message = "Paused"
+    } else {
+        res.Message = "Continuing"
+    }
+}
 
 func main() {
 	pAddr := flag.String("port", "8030", "Port to listen on")
