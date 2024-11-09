@@ -70,14 +70,13 @@ func nextState(world [][]uint8, region stubs.CoordinatePair) [][]uint8 {
     // do not update the halo region
     for y := 1; y < h-1; y++ {
         for x := 1; x < w-1; x++ {
-            fmt.Printf("y: %v, x: %v\n", y, x)
             neighbors := countLiveNeighbors(world, x, y, w, h)
             
             switch {
-            case world[y][x] == Alive && (neighbors < 2 || neighbors > 3):
-                newWorld[y-1][x-1] = Dead
-            case world[y][x] == Dead && neighbors == 3:
-                newWorld[y-1][x-1] = Alive
+                case world[y][x] == Alive && (neighbors < 2 || neighbors > 3):
+                    newWorld[y-1][x-1] = Dead
+                case world[y][x] == Dead && neighbors == 3:
+                    newWorld[y-1][x-1] = Alive
             }
         }
     }
