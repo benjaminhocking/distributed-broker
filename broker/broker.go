@@ -76,6 +76,7 @@ func getWorldRegion(world [][]uint8, region stubs.CoordinatePair) [][]uint8{
     // Calculate dimensions of the region including halo
     height := region.Y2 - region.Y1 + 3  // +3 for halo (1 above, 1 below)
     width := region.X2 - region.X1 + 3   // +3 for halo (1 left, 1 right)
+
     
     // Create slice to hold the region
     regionSlice := make([][]uint8, height)
@@ -94,6 +95,11 @@ func getWorldRegion(world [][]uint8, region stubs.CoordinatePair) [][]uint8{
             worldX := ((region.X1 - 1 + x) + worldWidth) % worldWidth
             regionSlice[y][x] = world[worldY][worldX]
         }
+    }
+    fmt.Printf("getWorldRegion for region: %v\n", region)
+    fmt.Printf("regionSlice: \n")
+    for _, row := range regionSlice {
+        fmt.Printf("region %v,%v-%v,%v row: %v\n", region.Y1, region.X1, region.Y2, region.X2, row)
     }
 
     return regionSlice
@@ -149,6 +155,12 @@ func (s *SecretStringOperations) Start(req stubs.BrokerRequest, res *stubs.Respo
     regions := splitBoard(req.ImageHeight, req.ImageWidth, req.Workers)
     fmt.Printf("Regions: %v\n", regions)
     workers := buildWorkers(regions)
+    fmt.Printf("Workers: %v\n", workers)
+
+    fmt.Printf("world: \n")
+    for _, row := range req.World {
+        fmt.Println(row)
+    }
 
     world := req.World
     var worldSlices []WorldSlice
@@ -263,6 +275,8 @@ func mergeWorldSlices(worldSlices []WorldSlice, world [][]uint8) [][]uint8 {
 
     // Wait for all goroutines to finish
     wg.Wait()
+
+    fmt.Printf("Merged world dimensions - Height: %d, Width: %d\n", len(mergedWorld), len(mergedWorld[0]))
 
     return mergedWorld
 }

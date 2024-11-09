@@ -59,16 +59,17 @@ func nextState(world [][]uint8, region stubs.CoordinatePair) [][]uint8 {
     fmt.Printf("h: %v, w: %v\n", h, w)
     
     // Initialize new world state
-    newWorld := make([][]uint8, h)
+    // do not update the halo region
+    newWorld := make([][]uint8, h-2)
     for i := range newWorld {
-        newWorld[i] = make([]uint8, w)
+        newWorld[i] = make([]uint8, w-2)
         copy(newWorld[i], world[i])
     }
 
     // Update each cell based on Game of Life rules
     // do not update the halo region
-    for y := 1; y < h; y++ {
-        for x := 1; x < w; x++ {
+    for y := 1; y <= h-1; y++ {
+        for x := 1; x <= w-1; x++ {
             neighbors := countLiveNeighbors(world, x, y, w, h)
             
             switch {
