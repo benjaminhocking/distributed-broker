@@ -15,7 +15,7 @@ import (
 var (
 	listener net.Listener
 	shutdown = make(chan bool)
-    instances = []string{"44.203.136.187", "44.203.194.31", "3.86.38.209", "54.164.86.590"}
+    instances = []string{"44.203.136.187", "44.203.194.31", "3.86.38.209", "54.164.86.59"}
 )
 
 
