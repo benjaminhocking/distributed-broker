@@ -272,7 +272,8 @@ func (s *SecretStringOperations) Start(req stubs.BrokerRequest, res *stubs.Respo
             
             case <-s.stopChannel:
 				fmt.Printf("Stopping game\n")
-				return world
+                res.UpdatedWorld = world
+				return nil
                 
             default:
                 if !s.isPaused{
