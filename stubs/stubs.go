@@ -12,6 +12,7 @@ type CoordinatePair struct{
 
 type Response struct {
 	UpdatedWorld [][]uint8
+	Turns int
 }
 
 type Request struct {

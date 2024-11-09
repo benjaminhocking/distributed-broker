@@ -45,6 +45,8 @@ func getRPCClient() (*rpc.Client, error) {
 
 func distributor(p Params, c DistributorChannels) {
 
+	fmt.Println("distributor")
+
 	H := p.ImageHeight
 	W := p.ImageWidth
 
@@ -179,6 +181,7 @@ func distributor(p Params, c DistributorChannels) {
 		//output the state of the board after all turns have been completed as a PGM image
 		c.ioCommand <- ioOutput
 		filename = fmt.Sprintf("%dx%dx%d", p.ImageHeight, p.ImageWidth, completedTurns)
+		fmt.Println("filename: ", filename)
 		c.ioFilename <- filename
 		for y := 0; y < H; y++ {
 			for x := 0; x < W; x++ {
@@ -372,7 +375,6 @@ func doAllTurnsBroker(world [][]uint8, p Params) [][]uint8 {
 		// If we can't connect, fall back to local processing
 		return nil
 	}
-	defer client.Close()
 
 	fmt.Println("Sending request to broker")
 
