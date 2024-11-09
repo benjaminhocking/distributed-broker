@@ -363,8 +363,15 @@ func (s *SecretStringOperations) Pause(req stubs.StateRequest, res *stubs.StateR
         respWorld = worldState.World
         respTurns = worldState.CurrentTurn
     }else{
-        respWorld = nil
-        respTurns = 0
+        fmt.Println("isPaused: ", s.isPaused)
+        worldStateChannel := make(chan WorldState)
+        fmt.Println("worldStateChannel created")
+        s.worldStateChannel <- worldStateChannel
+        fmt.Println("worldStateChannel sent")
+        worldState := <-worldStateChannel
+        fmt.Println("worldState received")
+        respWorld = worldState.World
+        respTurns = worldState.CurrentTurn
     }
     fmt.Println("1")
     s.isPaused = !s.isPaused
