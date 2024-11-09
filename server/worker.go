@@ -56,28 +56,32 @@ const (
 // nextState calculates the next state of the world according to Game of Life rules
 func nextState(world [][]uint8, imageWidth, imageHeight int, region stubs.CoordinatePair) [][]uint8 {
     h, w := imageHeight, imageWidth
+    sliceHeight := region.Y2 - region.Y1 + 1
+    sliceWidth := region.X2 - region.X1 + 1
+
+    sliceStartY := region.Y1
+    sliceStartX := region.X1
     
     // Initialize new world state
-    newWorld := make([][]uint8, h)
-    for i := range newWorld {
-        newWorld[i] = make([]uint8, w)
-        copy(newWorld[i], world[i])
+    newWorldSlice := make([][]uint8, sliceHeight)
+    for i := range newWorldSlice {
+        newWorldSlice[i] = make([]uint8, sliceWidth)
     }
 
     // Update each cell based on Game of Life rules
-    for y := region.Y1; y <= region.Y2; y++ {
-        for x := region.X1; x <= region.X2; x++ {
+    for y := sliceStartY; y <= region.Y2; y++ {
+        for x := sliceStartX; x <= region.X2; x++ {
             neighbors := countLiveNeighbors(world, x, y, w, h)
             
             switch {
             case world[y][x] == Alive && (neighbors < 2 || neighbors > 3):
-                newWorld[y][x] = Dead
+                newWorldSlice[y - sliceStartY][x - sliceStartX] = Dead
             case world[y][x] == Dead && neighbors == 3:
-                newWorld[y][x] = Alive
+                newWorldSlice[y - sliceStartY][x - sliceStartX] = Alive
             }
         }
     }
-    return newWorld
+    return newWorldSlice
 }
 
 func (s *SecretStringOperations) NextState(req stubs.WorkerRequest, res *stubs.Response) (err error) {

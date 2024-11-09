@@ -18,9 +18,9 @@ var (
 )
 
 
-func dialWorker(workerConfig WorkerConfig) (*rpc.Client, error){
+func dialWorker(ipAddr string) (*rpc.Client, error){
     var err error
-    addr := fmt.Sprintf("%s:8030", workerConfig.IpAddr)
+    addr := fmt.Sprintf("%s:8030", ipAddr)
     fmt.Printf("connect to %s\n", addr)
     rpcClient, err := rpc.Dial("tcp", addr)
     
@@ -51,6 +51,7 @@ func NewSecretStringOperations() *SecretStringOperations {
 type WorkerConfig struct{
     Region stubs.CoordinatePair
     IpAddr string
+    Client *rpc.Client
 }
 
 type GameState struct {
@@ -68,12 +69,8 @@ type WorldSlice struct{
     Region      stubs.CoordinatePair
 }
 
-func workerNextState(workerConfig WorkerConfig, world [][]uint8, imageWidth, imageHeight int) [][]uint8{
-    fmt.Println("WorkerNextState")
-    fmt.Printf("WorkerConfig: %v\n", workerConfig)
-    fmt.Printf("Region: %v\n", workerConfig.Region)
-    client, err := dialWorker(workerConfig)
-    if err == nil{
+func workerNextState(workerConfig WorkerConfig, world [][]uint8, imageWidth, imageHeight int) [][]uint8{    
+    if workerConfig.Client != nil{
         request := stubs.WorkerRequest{
             World:world, 
             Region: workerConfig.Region,
@@ -81,11 +78,10 @@ func workerNextState(workerConfig WorkerConfig, world [][]uint8, imageWidth, ima
             ImageHeight: imageHeight,
         }
         response := new(stubs.Response)
-        fmt.Printf("Request: %v\n", request)
-        client.Call("SecretStringOperations.NextState", request, response)
+        workerConfig.Client.Call("SecretStringOperations.NextState", request, response)
         return response.UpdatedWorld
     }else{
-        fmt.Printf("Error dialing worker: %v\n", err)
+        fmt.Printf("Error dialing worker: %v\n", workerConfig.Client)
     }
     return nil
 }
@@ -94,11 +90,16 @@ func buildWorkers(regions []stubs.CoordinatePair) []WorkerConfig {
     workers := []WorkerConfig{}
     var worker WorkerConfig
     for i, region := range regions{
-        worker = WorkerConfig{
-            Region: region,
-            IpAddr: instances[i],
+        ipAddr := instances[i]
+        client, err := dialWorker(ipAddr)
+        if err == nil{
+            worker = WorkerConfig{
+                Region: region,
+                IpAddr: ipAddr,
+                Client: client,
+            }
+            workers = append(workers, worker)
         }
-        workers = append(workers, worker)
     }
     return workers
 }
@@ -153,7 +154,7 @@ func (s *SecretStringOperations) Start(req stubs.BrokerRequest, res *stubs.Respo
                 worldSlices = append(worldSlices, ws)
             }
             
-            world = mergeWorldSlices(worldSlices)
+            world = mergeWorldSlices(worldSlices, world)
             currentTurn++
         }
     }
@@ -170,38 +171,15 @@ func (s *SecretStringOperations) AliveCellsCount(req stubs.AliveCellsCountReques
     return nil
 }
 
-func mergeWorldSlices(worldSlices []WorldSlice) [][]uint8 {
-    if len(worldSlices) == 0 {
-        return nil
-    }
-
-    // Get dimensions from the first slice's region
-    firstRegion := worldSlices[0].Region
-    totalHeight := 0
-    width := firstRegion.X2 - firstRegion.X1 + 1
-
-    // Calculate total height by finding max Y2
-    for _, slice := range worldSlices {
-        if slice.Region.Y2 > totalHeight {
-            totalHeight = slice.Region.Y2 + 1
+func mergeWorldSlices(worldSlices []WorldSlice, world [][]uint8) [][]uint8 {
+   for _, ws := range worldSlices{
+    for y := ws.Region.Y1; y <= ws.Region.Y2; y++{
+        for x := ws.Region.X1; x <= ws.Region.X2; x++{
+            world[y][x] = ws.World[y - ws.Region.Y1][x - ws.Region.X1]
         }
     }
-
-    // Initialize merged world
-    mergedWorld := make([][]uint8, totalHeight)
-    for i := range mergedWorld {
-        mergedWorld[i] = make([]uint8, width)
-    }
-
-    // Copy each slice's data into the correct position
-    for _, slice := range worldSlices {
-        region := slice.Region
-        for y := region.Y1; y <= region.Y2; y++ {
-            copy(mergedWorld[y][region.X1:region.X2+1], slice.World[y][region.X1:region.X2+1])
-        }
-    }
-
-    return mergedWorld
+   }
+   return world
 }
 
 func splitBoard(H, W, workers int) []stubs.CoordinatePair {
