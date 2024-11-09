@@ -208,7 +208,7 @@ func pause(p Params,c DistributorChannels, completedTurns int) (int){
 
 		client.Call("SecretStringOperations.Pause", request, response)
 
-		
+		completedTurns = response.Turns
 		if response.Message == "Continuing"{
 			c.events <- StateChange{response.Turns, Executing}
 			fmt.Println("Continuing")
