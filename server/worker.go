@@ -56,6 +56,7 @@ const (
 // nextState calculates the next state of the world according to Game of Life rules
 func nextState(world [][]uint8, region stubs.CoordinatePair) [][]uint8 {
     h, w := len(world), len(world[0])
+    fmt.Printf("h: %v, w: %v\n", h, w)
     
     // Initialize new world state
     newWorld := make([][]uint8, h)

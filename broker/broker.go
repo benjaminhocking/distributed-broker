@@ -218,21 +218,45 @@ func mergeWorldSlices(worldSlices []WorldSlice, world [][]uint8) [][]uint8 {
     mergedWorld := make([][]uint8, totalHeight)
     for i := range mergedWorld {
         mergedWorld[i] = make([]uint8, width)
+        copy(mergedWorld[i], world[i]) // Copy existing world state
     }
 
     // Use wait group to synchronize goroutines
     var wg sync.WaitGroup
 
-    // Copy slices concurrently
+    // Copy slices concurrently, excluding halo regions
     for _, slice := range worldSlices {
         wg.Add(1)
-        sliceHeight := len(slice.World)
-        sliceWidth := len(slice.World[0])
         go func(ws WorldSlice) {
             defer wg.Done()
             region := ws.Region
-            for y := region.Y1; y <= region.Y2; y++ {
-                copy(mergedWorld[y][region.X1:region.X2+1], ws.World[y-region.Y1+1][0:sliceWidth])
+            
+            // Calculate actual region bounds excluding halo
+            startY := region.Y1
+            if startY == 0 {
+                startY = 1 // Skip first row if it's a halo
+            }
+            
+            endY := region.Y2
+            if endY == totalHeight-1 {
+                endY = totalHeight-2 // Skip last row if it's a halo
+            }
+
+            startX := region.X1
+            if startX == 0 {
+                startX = 1 // Skip first column if it's a halo
+            }
+            
+            endX := region.X2
+            if endX == width-1 {
+                endX = width-2 // Skip last column if it's a halo
+            }
+
+            // Copy only the non-halo region
+            for y := startY; y <= endY; y++ {
+                for x := startX; x <= endX; x++ {
+                    mergedWorld[y][x] = ws.World[y-region.Y1+1][x-region.X1+1]
+                }
             }
         }(slice)
     }
