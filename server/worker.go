@@ -67,7 +67,6 @@ func nextState(world [][]uint8, region stubs.CoordinatePair) [][]uint8 {
     newWorld := make([][]uint8, h-2)
     for i := range newWorld {
         newWorld[i] = make([]uint8, w-2)
-        copy(newWorld[i], world[i])
     }
 
     // Update each cell based on Game of Life rules
@@ -81,6 +80,8 @@ func nextState(world [][]uint8, region stubs.CoordinatePair) [][]uint8 {
                     newWorld[y-1][x-1] = Dead
                 case world[y][x] == Dead && neighbors == 3:
                     newWorld[y-1][x-1] = Alive
+                default:
+                    newWorld[y-1][x-1] = world[y][x]
             }
         }
     }
