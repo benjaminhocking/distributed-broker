@@ -10,6 +10,7 @@ import (
 	"net/rpc"
 	"uk.ac.bris.cs/gameoflife/stubs"
     "sync"
+    "os"
 )
 
 var (
