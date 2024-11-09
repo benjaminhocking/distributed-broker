@@ -155,17 +155,21 @@ func distributor(p Params, c DistributorChannels) {
     }()
 
 	fmt.Println("before world")
+	fmt.Println("writeToFile: ", writeToFile)
 	world = doAllTurnsBroker(world, p)
 	fmt.Println("after world")
-	done <- true
 	if(world == nil){
+		fmt.Println("world is nil")
 		return
 	}
+
+	fmt.Println("1")
 
 
 	// TODO: Report the final state using FinalTurnCompleteEvent.
 	alives := calculateAliveCells(world)
 	c.events <- FinalTurnComplete{CompletedTurns: completedTurns, Alive: alives}
+	fmt.Println("2")
 	// send an event down an events channel
 	// must implement the events channel, FinalTurnComplete is an event so must implement the event interface
 	// Make sure that the Io has finished any output before exiting.
@@ -389,7 +393,8 @@ func doAllTurnsBroker(world [][]uint8, p Params) [][]uint8 {
 	err = client.Call("SecretStringOperations.Start", request, response)
 	if err != nil {
 		fmt.Printf("Server connection closed\n")
-		return nil
+		fmt.Println("error: ", err)
+		return response.UpdatedWorld
 	}
 
 	return response.UpdatedWorld

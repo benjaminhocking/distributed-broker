@@ -301,6 +301,7 @@ func (s *SecretStringOperations) Start(req stubs.BrokerRequest, res *stubs.Respo
     }
 
     res.UpdatedWorld = world
+    fmt.Println("Updated world: ", res.UpdatedWorld)
 
     return nil
 }
