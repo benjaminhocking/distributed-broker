@@ -274,7 +274,7 @@ func kill(p Params,c DistributorChannels){
 
 		response := new(stubs.StateResponse)
 
-		client.Call("SecretStringOperations.State", request, response)
+		client.Call("SecretStringOperations.Kill", request, response)
 
 		fmt.Printf("Server killed, world state saved\n")
 	}
