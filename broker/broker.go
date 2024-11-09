@@ -260,7 +260,7 @@ func (s *SecretStringOperations) Start(req stubs.BrokerRequest, res *stubs.Respo
                     CurrentTurn: currentTurn,
                 }
             
-            case responseChan := <-worldStateChan:
+            case responseChan := <-s.worldStateChannel:
 				fmt.Println("worldStateChan in case")
 				fmt.Println("turn: ", t)
 				state := WorldState{
