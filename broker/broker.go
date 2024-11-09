@@ -15,7 +15,7 @@ import (
 var (
 	listener net.Listener
 	shutdown = make(chan bool)
-    instances = []string{"44.203.136.187", "44.203.194.31", "3.86.38.209", "54.164.86.59"}
+    instances = []string{"44.203.136.187", "44.203.194.31", "3.86.38.209", "44.204.44.26", "54.204.227.31"}
 )
 
 
@@ -25,7 +25,6 @@ func dialWorker(ipAddr string) (*rpc.Client, error){
     fmt.Printf("connect to %s\n", addr)
     rpcClient, err := rpc.Dial("tcp", addr)
     
-
     if err != nil {
         return nil, err
     }
@@ -158,9 +157,10 @@ func (s *SecretStringOperations) Start(req stubs.BrokerRequest, res *stubs.Respo
     fmt.Printf("Workers: %v\n", workers)
 
     fmt.Printf("world: \n")
-    for _, row := range req.World {
-        fmt.Println(row)
-    }
+    fmt.Printf("turns: %d\n", req.Turns)
+    //for _, row := range req.World {
+    //    fmt.Println(row)
+    //}
 
     world := req.World
     var worldSlices []WorldSlice
@@ -199,6 +199,8 @@ func (s *SecretStringOperations) Start(req stubs.BrokerRequest, res *stubs.Respo
             currentTurn++
         }
     }
+
+    res.UpdatedWorld = world
 
     return nil
 }
@@ -301,7 +303,7 @@ func main() {
     rpc.Register(NewSecretStringOperations())
     
     var err error
-    listener, err = net.Listen("tcp", "localhost:8030")
+    listener, err = net.Listen("tcp", "0.0.0.0:8030")
     if err != nil {
         fmt.Printf("Error starting server: %v\n", err)
         return

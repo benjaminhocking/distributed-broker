@@ -31,10 +31,11 @@ var (
 func getRPCClient() (*rpc.Client, error) {
     var err error
     once.Do(func() {
-        rpcClient, err = rpc.Dial("tcp", "localhost:8030")
+        rpcClient, err = rpc.Dial("tcp", "54.164.86.59:8030")
     })
     
     if err != nil {
+		fmt.Printf("Error: %v\n", err)
         return nil, err
     }
     return rpcClient, nil
@@ -373,7 +374,7 @@ func doAllTurnsBroker(world [][]uint8, p Params) [][]uint8 {
 
 	fmt.Println("Sending request to broker")
 
-	workers := 4
+	workers := 5
 
 
 	// Create request with current world state and parameters
