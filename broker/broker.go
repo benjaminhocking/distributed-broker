@@ -346,8 +346,6 @@ func (s *SecretStringOperations) Pause(req stubs.StateRequest, res *stubs.StateR
     fmt.Println("1")
     s.isPaused = !s.isPaused
     fmt.Println("2")
-    s.pauseChannel <- s.isPaused
-    fmt.Println("3")
     
     res.World = respWorld
     res.Turns = respTurns
