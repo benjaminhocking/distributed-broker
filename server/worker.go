@@ -81,8 +81,6 @@ func nextState(world [][]uint8, imageWidth, imageHeight int, region stubs.Coordi
 }
 
 func (s *SecretStringOperations) NextState(req stubs.WorkerRequest, res *stubs.Response) (err error) {
-    fmt.Printf("NextState\n")
-    fmt.Printf("Request: %v\n", req)
 	world := nextState(req.World, req.ImageWidth, req.ImageHeight, req.Region)
 	res.UpdatedWorld = world
 	return nil

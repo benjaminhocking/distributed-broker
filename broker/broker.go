@@ -103,36 +103,105 @@ func buildWorkers(regions []stubs.CoordinatePair) []WorkerConfig {
     return workers
 }
 
+func calculateAliveCells(world [][]uint8) int {
+    aliveCount := 0
+    for y := range world {
+        for x := range world[y] {
+            if world[y][x] == 255 {
+                aliveCount++
+            }
+        }
+    }
+    return aliveCount
+}
+
 func (s *SecretStringOperations) Start(req stubs.BrokerRequest, res *stubs.Response) (err error) {
-	//world := req.World
     regions := splitBoard(req.ImageHeight, req.ImageWidth, req.Workers)
     fmt.Printf("Regions: %v\n", regions)
     workers := buildWorkers(regions)
 
-    //var world [][]uint8
+    world := req.World
     var worldSlices []WorldSlice
+    currentTurn := 0
+    
     for t := 0; t < req.Turns; t++ {
-        worldSlices = []WorldSlice{}
-        resultChan := make(chan WorldSlice, len(workers))
+        select {
+        case responseChan := <-s.aliveCellsChannel:
+            // Count alive cells in current world state
+            aliveCount := calculateAliveCells(world)
+            
+            responseChan <- GameState{
+                AliveCells: aliveCount,
+                CurrentTurn: currentTurn,
+            }
+            
+        default:
+            worldSlices = []WorldSlice{}
+            resultChan := make(chan WorldSlice, len(workers))
 
-        for _, worker := range workers {
-            // Launch a goroutine for each worker
-            go func(w WorkerConfig) {
-                worldSlice := workerNextState(w, req.World, req.ImageWidth, req.ImageHeight)
-                resultChan <- WorldSlice{World: worldSlice, Region: w.Region}
-            }(worker)
-        }
+            for _, worker := range workers {
+                // Launch a goroutine for each worker
+                go func(w WorkerConfig) {
+                    worldSlice := workerNextState(w, world, req.ImageWidth, req.ImageHeight)
+                    resultChan <- WorldSlice{World: worldSlice, Region: w.Region}
+                }(worker)
+            }
 
-        // Collect the results from all goroutines
-        for i := 0; i < len(workers); i++ {
-            ws := <-resultChan
-            worldSlices = append(worldSlices, ws)
+            // Collect the results from all goroutines
+            for i := 0; i < len(workers); i++ {
+                ws := <-resultChan
+                worldSlices = append(worldSlices, ws)
+            }
+            
+            world = mergeWorldSlices(worldSlices)
+            currentTurn++
         }
-        //collect all of these together
-        //world = mergeWorldSlices(worldSlices)
     }
 
-	return nil
+    return nil
+}
+
+func (s *SecretStringOperations) AliveCellsCount(req stubs.AliveCellsCountRequest, res *stubs.AliveCellsCountResponse) (err error) {
+    responseChannel := make(chan GameState)
+    s.aliveCellsChannel <- responseChannel
+    state := <-responseChannel
+    res.CellsAlive = state.AliveCells
+    res.Turns = state.CurrentTurn
+    return nil
+}
+
+func mergeWorldSlices(worldSlices []WorldSlice) [][]uint8 {
+    if len(worldSlices) == 0 {
+        return nil
+    }
+
+    // Get dimensions from the first slice's region
+    firstRegion := worldSlices[0].Region
+    totalHeight := 0
+    width := firstRegion.X2 - firstRegion.X1 + 1
+
+    // Calculate total height by finding max Y2
+    for _, slice := range worldSlices {
+        if slice.Region.Y2 > totalHeight {
+            totalHeight = slice.Region.Y2 + 1
+        }
+    }
+
+    // Initialize merged world
+    mergedWorld := make([][]uint8, totalHeight)
+    for i := range mergedWorld {
+        mergedWorld[i] = make([]uint8, width)
+    }
+
+    // Copy each slice's data into the correct position
+    for _, slice := range worldSlices {
+        region := slice.Region
+        for y := region.Y1; y <= region.Y2; y++ {
+            copy(mergedWorld[y][region.X1:region.X2+1], slice.World[y][region.X1:region.X2+1])
+        }
+    }
+
+    return mergedWorld
 }
 
 func splitBoard(H, W, workers int) []stubs.CoordinatePair {
