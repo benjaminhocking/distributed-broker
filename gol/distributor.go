@@ -210,12 +210,12 @@ func pause(p Params,c DistributorChannels, completedTurns int) (int){
 
 		
 		if response.Message == "Continuing"{
-			c.events <- StateChange{completedTurns, Executing}
+			c.events <- StateChange{response.Turns, Executing}
 			fmt.Println("Continuing")
-			return completedTurns
+			return response.Turns
 		}else{
 			fmt.Printf("Turns: %d\n", response.Turns)
-			c.events <- StateChange{completedTurns, Paused}
+			c.events <- StateChange{response.Turns, Paused}
 			return response.Turns
 		}
 	}else{
