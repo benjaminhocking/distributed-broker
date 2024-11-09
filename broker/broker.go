@@ -342,6 +342,7 @@ func (s *SecretStringOperations) Pause(req stubs.StateRequest, res *stubs.StateR
     } else {
         res.Message = "Continuing"
     }
+    return nil
 }
 
 func main() {
