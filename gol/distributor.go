@@ -205,12 +205,10 @@ func pause(p Params,c DistributorChannels, completedTurns int) (int){
 		request := stubs.StateRequest{Command: "pause"}
 		response := new(stubs.StateResponse)
 
-		fmt.Println("response: ", response)
 
 		client.Call("SecretStringOperations.Pause", request, response)
 
-		fmt.Println("Response: ", response.Message)
-
+		
 		if response.Message == "Continuing"{
 			c.events <- StateChange{completedTurns, Executing}
 			fmt.Println("Continuing")
@@ -306,7 +304,7 @@ func saveBoardState(p Params, c DistributorChannels) {
 	}
 	request := stubs.StateRequest{Command: "save"}
 	response := new(stubs.StateResponse)
-	client.Call("SecretStringOperations.State", request, response)
+	client.Call("SecretStringOperations.Save", request, response)
 	world := response.World
 	turns := response.Turns
 

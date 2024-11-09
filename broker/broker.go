@@ -308,7 +308,13 @@ func (s *SecretStringOperations) AliveCellsCount(req stubs.AliveCellsCountReques
     return nil
 }
 
-func (s *SecretStringOperations) State(req stubs.StateRequest, res *stubs.StateResponse) (err error) {
+func (s *SecretStringOperations) Save(req stubs.StateRequest, res *stubs.StateResponse) (err error) {
+    fmt.Println("SAVE")
+    worldStateChannel := make(chan WorldState)
+    s.worldStateChannel <- worldStateChannel
+    worldState := <-worldStateChannel
+    res.World = worldState.World
+    res.Turns = worldState.CurrentTurn
     res.Message = "Continuing"
     return nil
 }
