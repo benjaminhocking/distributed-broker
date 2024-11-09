@@ -8,7 +8,7 @@ import (
 	"time"
 	"uk.ac.bris.cs/gameoflife/stubs"
 	"uk.ac.bris.cs/gameoflife/util"
-	//"fmt"
+	"fmt"
 	"strings"
 )
 
