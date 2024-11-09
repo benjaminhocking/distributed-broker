@@ -96,11 +96,11 @@ func getWorldRegion(world [][]uint8, region stubs.CoordinatePair) [][]uint8{
             regionSlice[y][x] = world[worldY][worldX]
         }
     }
-    fmt.Printf("getWorldRegion for region: %v\n", region)
-    fmt.Printf("regionSlice: \n")
-    for _, row := range regionSlice {
-        fmt.Printf("region %v,%v-%v,%v row: %v\n", region.Y1, region.X1, region.Y2, region.X2, row)
-    }
+    //fmt.Printf("getWorldRegion for region: %v\n", region)
+    //fmt.Printf("regionSlice: \n")
+    //for _, row := range regionSlice {
+    //    fmt.Printf("region %v,%v-%v,%v row: %v\n", region.Y1, region.X1, region.Y2, region.X2, row)
+    //}
 
     return regionSlice
 
@@ -238,36 +238,18 @@ func mergeWorldSlices(worldSlices []WorldSlice, world [][]uint8) [][]uint8 {
 
     // Copy slices concurrently, excluding halo regions
     for _, slice := range worldSlices {
+        //fmt.Printf("Slice size - Height: %d, Width: %d\n", len(slice.World), len(slice.World[0]))
         wg.Add(1)
         go func(ws WorldSlice) {
             defer wg.Done()
             region := ws.Region
-            
-            // Calculate actual region bounds excluding halo
             startY := region.Y1
-            if startY == 0 {
-                startY = 1 // Skip first row if it's a halo
-            }
-            
-            endY := region.Y2
-            if endY == totalHeight-1 {
-                endY = totalHeight-2 // Skip last row if it's a halo
-            }
-
             startX := region.X1
-            if startX == 0 {
-                startX = 1 // Skip first column if it's a halo
-            }
-            
-            endX := region.X2
-            if endX == width-1 {
-                endX = width-2 // Skip last column if it's a halo
-            }
 
             // Copy only the non-halo region
-            for y := startY; y <= endY; y++ {
-                for x := startX; x <= endX; x++ {
-                    mergedWorld[y][x] = ws.World[y-region.Y1+1][x-region.X1+1]
+            for y := 0; y <= len(ws.World)-1; y++ {
+                for x := 0; x <= len(ws.World[0])-1; x++ {
+                    mergedWorld[startY+y][startX+x] = ws.World[y][x]
                 }
             }
         }(slice)
@@ -276,7 +258,7 @@ func mergeWorldSlices(worldSlices []WorldSlice, world [][]uint8) [][]uint8 {
     // Wait for all goroutines to finish
     wg.Wait()
 
-    fmt.Printf("Merged world dimensions - Height: %d, Width: %d\n", len(mergedWorld), len(mergedWorld[0]))
+    //fmt.Printf("Merged world dimensions - Height: %d, Width: %d\n", len(mergedWorld), len(mergedWorld[0]))
 
     return mergedWorld
 }

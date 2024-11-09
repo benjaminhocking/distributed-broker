@@ -68,8 +68,8 @@ func nextState(world [][]uint8, region stubs.CoordinatePair) [][]uint8 {
 
     // Update each cell based on Game of Life rules
     // do not update the halo region
-    for y := 1; y <= h-1; y++ {
-        for x := 1; x <= w-1; x++ {
+    for y := 1; y < h-1; y++ {
+        for x := 1; x < w-1; x++ {
             neighbors := countLiveNeighbors(world, x, y, w, h)
             
             switch {
