@@ -31,7 +31,7 @@ var (
 func getRPCClient() (*rpc.Client, error) {
     var err error
     once.Do(func() {
-        rpcClient, err = rpc.Dial("tcp", "3.86.38.167:8030")
+        rpcClient, err = rpc.Dial("tcp", "3.83.172.39:8030")
     })
     
     if err != nil {
@@ -150,7 +150,8 @@ func distributor(p Params, c DistributorChannels) {
 					saveBoardState(p, c)
 				
                 case 'q':
-					quitClient(p, c)
+					completedTurns = quitClient(p, c)
+					fmt.Printf("completed turns: %d", completedTurns)
 					writeToFile = true
 					fmt.Printf("writeToFile = %t\n", writeToFile)
 					quit <- true
@@ -176,8 +177,9 @@ func distributor(p Params, c DistributorChannels) {
 
 	fmt.Println("before world")
 	fmt.Println("writeToFile: ", writeToFile)
-	world, _ = doAllTurnsBroker(world, p)
+	world, completedTurns = doAllTurnsBroker(world, p)
 	fmt.Println("after world")
+	fmt.Printf("completed turns: %d\n", completedTurns)
 	if(world == nil){
 		fmt.Println("world is nil")
 		close(c.events)
@@ -199,7 +201,7 @@ func distributor(p Params, c DistributorChannels) {
 		fmt.Println("writeToFile")
 		//output the state of the board after all turns have been completed as a PGM image
 		c.ioCommand <- ioOutput
-		filename = fmt.Sprintf("%dx%dx%d", p.ImageHeight, p.ImageWidth, p.Turns)
+		filename = fmt.Sprintf("%dx%dx%d", p.ImageHeight, p.ImageWidth, completedTurns)
 		fmt.Println("filename: ", filename)
 		c.ioFilename <- filename
 		for y := 0; y < H; y++ {
@@ -207,6 +209,8 @@ func distributor(p Params, c DistributorChannels) {
 				c.ioOutput <- world[y][x]
 			}
 		}
+		c.ioCommand <- ioCheckIdle
+		<-c.ioIdle
 		c.events <- ImageOutputComplete{completedTurns, filename}
 	}
 
@@ -254,7 +258,7 @@ func pause(p Params,c DistributorChannels, completedTurns int) (int){
 	}
 }
 
-func quitClient(p Params, c DistributorChannels){
+func quitClient(p Params, c DistributorChannels) int{
 
 	fmt.Println("Quitting")
 
@@ -287,12 +291,15 @@ func quitClient(p Params, c DistributorChannels){
 		c.events <- StateChange{response.Turns, Quitting}
 		fmt.Println("after state change quit")
 
+		return response.Turns
+
 
 		//saveBoardWorld(c, p, response.World, response.Turns)
 		
 	}else{
 		fmt.Println("Failed to connect to server")
 		fmt.Printf("Error stack trace:\n%+v\n", err)
+		return 0
 	}
 }
 
