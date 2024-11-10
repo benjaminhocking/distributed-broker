@@ -283,6 +283,7 @@ func (s *SecretStringOperations) Start(req stubs.BrokerRequest, res *stubs.Respo
                 }
                 
                 if !s.isPaused{
+                    fmt.Printf("turns: %d", currentTurn)
                     worldSlices = []WorldSlice{}
                     resultChan := make(chan WorldSlice, len(workers))
 
