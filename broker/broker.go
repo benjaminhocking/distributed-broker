@@ -278,6 +278,7 @@ func (s *SecretStringOperations) Start(req stubs.BrokerRequest, res *stubs.Respo
                 if currentTurn > req.Turns{
                     fmt.Printf("current turn (%d) > req.Turns (%d)", currentTurn, req.Turns)
                     res.UpdatedWorld = world
+                    res.Turns = currentTurn
                     return nil
                 }
                 
