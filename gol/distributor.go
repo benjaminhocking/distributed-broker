@@ -45,6 +45,7 @@ func getRPCClient() (*rpc.Client, error) {
 
 func distributor(p Params, c DistributorChannels) {
 	fmt.Println("distributor")
+	fmt.Printf("distributor turns: %d", p.Turns)
 
 	H := p.ImageHeight
 	W := p.ImageWidth
@@ -102,6 +103,7 @@ func distributor(p Params, c DistributorChannels) {
 
 	// Ticker logic to report alive cells count every 2 seconds
 	go func() {
+		
 		defer func() {
 			if r := recover(); r != nil {
 				// Optional: log the recovered error
@@ -177,9 +179,10 @@ func distributor(p Params, c DistributorChannels) {
 
 	fmt.Println("before world")
 	fmt.Println("writeToFile: ", writeToFile)
-	world, completedTurns = doAllTurnsBroker(world, p)
+	var finalTurns int
+	world, finalTurns = doAllTurnsBroker(world, p)
 	fmt.Println("after world")
-	fmt.Printf("completed turns: %d\n", completedTurns)
+	fmt.Printf("completed turns: %d\n", finalTurns)
 	if(world == nil){
 		fmt.Println("world is nil")
 		close(c.events)
@@ -190,18 +193,22 @@ func distributor(p Params, c DistributorChannels) {
 
 
 	// TODO: Report the final state using FinalTurnCompleteEvent.
-	alives := calculateAliveCells(world)
-	c.events <- FinalTurnComplete{CompletedTurns: completedTurns, Alive: alives}
-	fmt.Println("2")
+
+	
+	
+
 	// send an event down an events channel
 	// must implement the events channel, FinalTurnComplete is an event so must implement the event interface
 	// Make sure that the Io has finished any output before exiting.
+
 	fmt.Println(writeToFile)
 	if(writeToFile){
 		fmt.Println("writeToFile")
 		//output the state of the board after all turns have been completed as a PGM image
+		alives := calculateAliveCells(world)
+		c.events <- FinalTurnComplete{CompletedTurns: finalTurns, Alive: alives}
 		c.ioCommand <- ioOutput
-		filename = fmt.Sprintf("%dx%dx%d", p.ImageHeight, p.ImageWidth, completedTurns)
+		filename = fmt.Sprintf("%dx%dx%d", p.ImageHeight, p.ImageWidth, finalTurns)
 		fmt.Println("filename: ", filename)
 		c.ioFilename <- filename
 		for y := 0; y < H; y++ {
@@ -211,8 +218,14 @@ func distributor(p Params, c DistributorChannels) {
 		}
 		c.ioCommand <- ioCheckIdle
 		<-c.ioIdle
-		c.events <- ImageOutputComplete{completedTurns, filename}
+		
+		c.events <- ImageOutputComplete{finalTurns, filename}
+	}else{
+		alives := calculateAliveCells(world)
+		c.events <- FinalTurnComplete{CompletedTurns: finalTurns, Alive: alives}
 	}
+
+	
 
 	// if it's idle it'll return true so you can use it before reading input, for example
 	// to ensure output has saved before reading
@@ -283,12 +296,12 @@ func quitClient(p Params, c DistributorChannels) int{
 			fmt.Println("World is nil")
 		}
 
-		alives := calculateAliveCells(response.World)
+		//alives := calculateAliveCells(response.World)
 
-		c.events <- FinalTurnComplete{CompletedTurns: response.Turns, Alive: alives}
+		//c.events <- FinalTurnComplete{CompletedTurns: response.Turns, Alive: alives}
 
 		fmt.Println("before state change quit")
-		c.events <- StateChange{response.Turns, Quitting}
+		//c.events <- StateChange{response.Turns, Quitting}
 		fmt.Println("after state change quit")
 
 		return response.Turns
@@ -435,7 +448,7 @@ func doAllTurnsBroker(world [][]uint8, p Params) ([][]uint8, int) {
 		return response.UpdatedWorld, response.Turns
 	}
 
-	fmt.Println("exiting doAllTurnsBroker")
+	fmt.Printf("exiting doAllTurnsBroker with %d turns \n", response.Turns)
 
 	return response.UpdatedWorld, response.Turns
 }
