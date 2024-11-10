@@ -250,7 +250,7 @@ func (s *SecretStringOperations) Start(req stubs.BrokerRequest, res *stubs.Respo
     var worldSlices []WorldSlice
     currentTurn := 0
     
-    for t := 0; t < req.Turns; t++ {
+    for {
         fmt.Printf("t: %d\n", t)
         fmt.Printf("currentTurn: %d\n", currentTurn)
 
@@ -277,6 +277,9 @@ func (s *SecretStringOperations) Start(req stubs.BrokerRequest, res *stubs.Respo
 				fmt.Printf("Stopping game\n")
                 res.UpdatedWorld = world
 				return nil
+            case currentTurn >= req.Turns:
+                res.UpdatedWorld = world
+                return nil
                 
             default:
                 if !s.isPaused{
