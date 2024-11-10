@@ -251,7 +251,6 @@ func (s *SecretStringOperations) Start(req stubs.BrokerRequest, res *stubs.Respo
     currentTurn := 0
     
     for {
-        fmt.Printf("t: %d\n", t)
         fmt.Printf("currentTurn: %d\n", currentTurn)
 
         select {
@@ -266,7 +265,6 @@ func (s *SecretStringOperations) Start(req stubs.BrokerRequest, res *stubs.Respo
             
             case responseChan := <-s.worldStateChannel:
 				fmt.Println("worldStateChan in case")
-				fmt.Println("turn: ", t)
 				state := WorldState{
 					World: world,
 					CurrentTurn: currentTurn,
@@ -277,11 +275,12 @@ func (s *SecretStringOperations) Start(req stubs.BrokerRequest, res *stubs.Respo
 				fmt.Printf("Stopping game\n")
                 res.UpdatedWorld = world
 				return nil
-            case currentTurn >= req.Turns:
-                res.UpdatedWorld = world
-                return nil
-                
             default:
+                if currentTurn >= req.Turns{
+                    res.UpdatedWorld = world
+                    return nil
+                }
+                
                 if !s.isPaused{
                     worldSlices = []WorldSlice{}
                     resultChan := make(chan WorldSlice, len(workers))
