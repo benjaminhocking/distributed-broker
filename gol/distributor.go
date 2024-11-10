@@ -31,7 +31,7 @@ var (
 func getRPCClient() (*rpc.Client, error) {
     var err error
     once.Do(func() {
-        rpcClient, err = rpc.Dial("tcp", "18.205.163.67:8030")
+        rpcClient, err = rpc.Dial("tcp", "3.86.38.167:8030")
     })
     
     if err != nil {
@@ -108,28 +108,30 @@ func distributor(p Params, c DistributorChannels) {
 			if r := recover(); r != nil {
 				// Optional: log the recovered error
 				fmt.Println("Recovered from panic in ticker:", r)
+				return
 			}
 		}()
 		for {
 			select {
-			case <-ticker.C:
-				select {
+				case <-ticker.C:
+					select {
+						case <-quit:
+							return
+						default:
+							alives, turns := calculateAliveCellsNode()
+							completedTurns = turns
+							// Safely send event only if not quitting
+							select {
+								case <-quit:
+									return
+								default:
+									c.events <- AliveCellsCount{CompletedTurns: turns, CellsCount: alives}
+							}
+					}
+				case <-done:
+					return
 				case <-quit:
 					return
-				default:
-					alives, turns := calculateAliveCellsNode()
-					completedTurns = turns
-					// Safely send event only if not quitting
-					select {
-					case <-quit:
-						return
-					case c.events <- AliveCellsCount{CompletedTurns: turns, CellsCount: alives}:
-					}
-				}
-			case <-done:
-				return
-			case <-quit:
-				return
 			}
 		}
 	}()
