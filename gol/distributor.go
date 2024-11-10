@@ -44,8 +44,6 @@ func getRPCClient() (*rpc.Client, error) {
 
 
 func distributor(p Params, c DistributorChannels) {
-	var wg sync.WaitGroup
-
 	fmt.Println("distributor")
 
 	H := p.ImageHeight
@@ -153,8 +151,8 @@ func distributor(p Params, c DistributorChannels) {
 				
                 case 'q':
 					quitClient(p, c)
-					writeToFile = false
-					fmt.Println("writeToFile = false")
+					writeToFile = true
+					fmt.Printf("writeToFile = %t\n", writeToFile)
 					quit <- true
 					done <- true
 					return
@@ -182,6 +180,7 @@ func distributor(p Params, c DistributorChannels) {
 	fmt.Println("after world")
 	if(world == nil){
 		fmt.Println("world is nil")
+		close(c.events)
 		return
 	}
 
@@ -219,7 +218,6 @@ func distributor(p Params, c DistributorChannels) {
 	c.events <- StateChange{turn, Quitting}
 
 	ticker.Stop()
-	wg.Wait()
 	
 	// Close the channel to stop the SDL goroutine gracefully. Removing may cause deadlock.
 	fmt.Println("closing events")
@@ -268,7 +266,7 @@ func quitClient(p Params, c DistributorChannels){
 
 		response := new(stubs.StateResponse)
 
-		client.Call("SecretStringOperations.State", request, response)
+		client.Call("SecretStringOperations.Quit", request, response)
 
 		fmt.Println("response received")
 
@@ -281,7 +279,13 @@ func quitClient(p Params, c DistributorChannels){
 			fmt.Println("World is nil")
 		}
 
+		alives := calculateAliveCells(response.World)
+
+		c.events <- FinalTurnComplete{CompletedTurns: response.Turns, Alive: alives}
+
+		fmt.Println("before state change quit")
 		c.events <- StateChange{response.Turns, Quitting}
+		fmt.Println("after state change quit")
 
 
 		//saveBoardWorld(c, p, response.World, response.Turns)
@@ -423,6 +427,8 @@ func doAllTurnsBroker(world [][]uint8, p Params) ([][]uint8, int) {
 		fmt.Println("error: ", err)
 		return response.UpdatedWorld, response.Turns
 	}
+
+	fmt.Println("exiting doAllTurnsBroker")
 
 	return response.UpdatedWorld, response.Turns
 }

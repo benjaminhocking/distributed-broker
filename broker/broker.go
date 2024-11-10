@@ -251,8 +251,6 @@ func (s *SecretStringOperations) Start(req stubs.BrokerRequest, res *stubs.Respo
     currentTurn := 0
     
     for {
-        fmt.Printf("currentTurn: %d\n", currentTurn)
-
         select {
             case responseChan := <-s.aliveCellsChannel:
                 // Count alive cells in current world state
@@ -331,6 +329,20 @@ func (s *SecretStringOperations) Save(req stubs.StateRequest, res *stubs.StateRe
     res.Message = "Continuing"
     return nil
 }
+
+func (s *SecretStringOperations) Quit(req stubs.StateRequest, res *stubs.StateResponse) (err error) {
+    fmt.Println("QUIT GAME")
+    worldStateChannel := make(chan WorldState)
+    s.worldStateChannel <- worldStateChannel
+    worldState := <-worldStateChannel
+    res.World = worldState.World
+    res.Turns = worldState.CurrentTurn
+    res.Message = "Continuing"
+    s.stopChannel <- true
+    return nil
+}
+
+
 
 func (s *SecretStringOperations) Kill(req stubs.StateRequest, res *stubs.StateResponse) (err error) {
     fmt.Println("Kill")
