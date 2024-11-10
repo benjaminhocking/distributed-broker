@@ -302,7 +302,7 @@ func (s *SecretStringOperations) Start(req stubs.BrokerRequest, res *stubs.Respo
 
     res.UpdatedWorld = world
     res.Turns = currentTurn
-    fmt.Println("Updated world: ", res.UpdatedWorld)
+    //fmt.Println("Updated world: ", res.UpdatedWorld)
 
     return nil
 }
@@ -350,45 +350,32 @@ func (s *SecretStringOperations) Pause(req stubs.StateRequest, res *stubs.StateR
     }
 
     fmt.Println("PAUSE")
-    fmt.Println("isPaused: ", s.isPaused)
     var respWorld [][]uint8
     var respTurns int
     
     if(!s.isPaused){
-        fmt.Println("isPaused: ", s.isPaused)
         worldStateChannel := make(chan WorldState)
-        fmt.Println("worldStateChannel created")
         s.worldStateChannel <- worldStateChannel
-        fmt.Println("worldStateChannel sent")
         worldState := <-worldStateChannel
-        fmt.Println("worldState received")
         respWorld = worldState.World
         respTurns = worldState.CurrentTurn
     }else{
-        fmt.Println("isPaused: ", s.isPaused)
         worldStateChannel := make(chan WorldState)
-        fmt.Println("worldStateChannel created")
         s.worldStateChannel <- worldStateChannel
-        fmt.Println("worldStateChannel sent")
         worldState := <-worldStateChannel
-        fmt.Println("worldState received")
         respWorld = worldState.World
         respTurns = worldState.CurrentTurn
     }
-    fmt.Println("1")
     s.isPaused = !s.isPaused
-    fmt.Println("2")
     
     res.World = respWorld
     res.Turns = respTurns
-    fmt.Println("4")
     
     if s.isPaused {
         res.Message = "Paused"
     } else {
         res.Message = "Continuing"
     }
-    fmt.Println("PAUSE response sent")
     return nil
 }
 

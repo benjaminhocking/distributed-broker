@@ -44,6 +44,7 @@ func getRPCClient() (*rpc.Client, error) {
 
 
 func distributor(p Params, c DistributorChannels) {
+	var wg sync.WaitGroup
 
 	fmt.Println("distributor")
 
@@ -98,19 +99,36 @@ func distributor(p Params, c DistributorChannels) {
 	ticker := time.NewTicker(2 * time.Second)
 
 	// Stop the ticker once distributor has exited
-	defer ticker.Stop()
 
 
 
 	// Ticker logic to report alive cells count every 2 seconds
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				// Optional: log the recovered error
+				fmt.Println("Recovered from panic in ticker:", r)
+			}
+		}()
 		for {
 			select {
 			case <-ticker.C:
-				alives, turns := calculateAliveCellsNode()
-				completedTurns = turns
-				c.events <- AliveCellsCount{CompletedTurns: turns , CellsCount: alives}
+				select {
+				case <-quit:
+					return
+				default:
+					alives, turns := calculateAliveCellsNode()
+					completedTurns = turns
+					// Safely send event only if not quitting
+					select {
+					case <-quit:
+						return
+					case c.events <- AliveCellsCount{CompletedTurns: turns, CellsCount: alives}:
+					}
+				}
 			case <-done:
+				return
+			case <-quit:
 				return
 			}
 		}
@@ -158,8 +176,7 @@ func distributor(p Params, c DistributorChannels) {
 
 	fmt.Println("before world")
 	fmt.Println("writeToFile: ", writeToFile)
-	var turns int
-	world, turns = doAllTurnsBroker(world, p)
+	world, _ = doAllTurnsBroker(world, p)
 	fmt.Println("after world")
 	if(world == nil){
 		fmt.Println("world is nil")
@@ -181,7 +198,7 @@ func distributor(p Params, c DistributorChannels) {
 		fmt.Println("writeToFile")
 		//output the state of the board after all turns have been completed as a PGM image
 		c.ioCommand <- ioOutput
-		filename = fmt.Sprintf("%dx%dx%d", p.ImageHeight, p.ImageWidth, turns)
+		filename = fmt.Sprintf("%dx%dx%d", p.ImageHeight, p.ImageWidth, p.Turns)
 		fmt.Println("filename: ", filename)
 		c.ioFilename <- filename
 		for y := 0; y < H; y++ {
@@ -199,9 +216,13 @@ func distributor(p Params, c DistributorChannels) {
 
 	c.events <- StateChange{turn, Quitting}
 
-
+	ticker.Stop()
+	wg.Wait()
+	
 	// Close the channel to stop the SDL goroutine gracefully. Removing may cause deadlock.
+	fmt.Println("closing events")
 	close(c.events)
+	fmt.Println("events closed")
 }
 
 func pause(p Params,c DistributorChannels, completedTurns int) (int){
@@ -374,6 +395,7 @@ func doAllTurnsBroker(world [][]uint8, p Params) ([][]uint8, int) {
 	client, err := getRPCClient()//rpc.Dial("tcp", "localhost:8030")
 	if err != nil {
 		// If we can't connect, fall back to local processing
+		fmt.Printf("RPC failed: %v\n", err)
 		return nil, 0
 	}
 
