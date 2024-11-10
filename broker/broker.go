@@ -272,10 +272,11 @@ func (s *SecretStringOperations) Start(req stubs.BrokerRequest, res *stubs.Respo
             case <-s.stopChannel:
 				fmt.Printf("Stopping game\n")
                 res.UpdatedWorld = world
+                res.Turns = currentTurn
 				return nil
             default:
                 if currentTurn > req.Turns{
-                    fmt.Printf("current turn (%d) >= req.Turns (%d)", currentTurn, req.Turns)
+                    fmt.Printf("current turn (%d) > req.Turns (%d)", currentTurn, req.Turns)
                     res.UpdatedWorld = world
                     return nil
                 }
