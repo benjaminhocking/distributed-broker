@@ -251,6 +251,9 @@ func (s *SecretStringOperations) Start(req stubs.BrokerRequest, res *stubs.Respo
     currentTurn := 0
     
     for t := 0; t < req.Turns; t++ {
+        fmt.Printf("t: %d\n", t)
+        fmt.Printf("currentTurn: %d\n", currentTurn)
+
         select {
             case responseChan := <-s.aliveCellsChannel:
                 // Count alive cells in current world state
