@@ -1,6 +1,7 @@
 package gol
 
-// acts as the client
+// Package gol implements the Game of Life distributed system with client-server architecture
+
 import (
 	"fmt"
 	"uk.ac.bris.cs/gameoflife/util"
@@ -10,6 +11,7 @@ import (
 	"time"
 )
 
+// DistributorChannels holds all channels used for communication between components
 type DistributorChannels struct {
 	events     chan<- Event
 	ioCommand  chan<- ioCommand
@@ -20,14 +22,14 @@ type DistributorChannels struct {
 	keyPresses <- chan rune
 }
 
-
+// Global variables for managing RPC client connection
 var (
     rpcClient *rpc.Client
     clientMu  sync.Mutex
     once      sync.Once
 )
 
-// Manage a singleton RPC connection
+// getRPCClient creates or returns existing RPC connection using singleton pattern
 func getRPCClient() (*rpc.Client, error) {
     var err error
     once.Do(func() {
@@ -41,72 +43,43 @@ func getRPCClient() (*rpc.Client, error) {
     return rpcClient, nil
 }
 
-
-
+// distributor coordinates the game simulation and handles communication between components
 func distributor(p Params, c DistributorChannels) {
-	fmt.Println("distributor")
-	fmt.Printf("distributor turns: %d", p.Turns)
-
 	H := p.ImageHeight
 	W := p.ImageWidth
 
-
-	// Create variable for world
 	world := make([][]uint8, H)
 	for i := 0; i < H; i++ {
-		world[i] = make([]uint8, W) //Initialise each row
+		world[i] = make([]uint8, W)
 	}
 
-	// Send the ioInput command on the command channel
-	// This tells the io code to read the pdm image
 	c.ioCommand <- ioInput
 
-
-	// Construct the filename following the image name convention
 	filename := fmt.Sprintf("%dx%d", p.ImageHeight, p.ImageWidth)
-	
-	// Send the filename on the filename channel
 	c.ioFilename <- filename
 
-	// Recieve the pixel values from the io input channel
 	for y := 0; y < H; y++ {
 		for x := 0; x < W; x++ {
 			world[y][x] = <-c.IoInput
 		}
 	}
 	
-	// Wait until all data is written before continuing
 	c.ioCommand <- ioCheckIdle
 	<-c.ioIdle
-
-	// Initialise helper channels and vars
 
 	completedTurns := 0
 	writeToFile := true
 	turn := 0
 
-	// Channel to signal when all turns are complete
 	done := make(chan bool)
-
-	// Channel to enable communication of quit
 	quit := make(chan bool)
 
-
-	// Initialise Ticker
-
-	// Ticker to report alive cell counts every 2 seconds
 	ticker := time.NewTicker(2 * time.Second)
 
-	// Stop the ticker once distributor has exited
-
-
-
-	// Ticker logic to report alive cells count every 2 seconds
+	// Goroutine for periodic reporting of alive cells
 	go func() {
-		
 		defer func() {
 			if r := recover(); r != nil {
-				// Optional: log the recovered error
 				fmt.Println("Recovered from panic in ticker:", r)
 				return
 			}
@@ -120,7 +93,6 @@ func distributor(p Params, c DistributorChannels) {
 						default:
 							alives, turns := calculateAliveCellsNode()
 							completedTurns = turns
-							// Safely send event only if not quitting
 							select {
 								case <-quit:
 									return
@@ -136,26 +108,20 @@ func distributor(p Params, c DistributorChannels) {
 		}
 	}()
 
-
-	// Signal that execution is starting
 	c.events <- StateChange{turn, Executing}
-	
 
-    // Start goroutine to handle keypresses
+	// Goroutine for handling keyboard input
     go func() {
         for {
             select {
             case key := <-c.keyPresses:
-				fmt.Println("Key pressed: ", key)
                 switch key {
                 case 's':
 					saveBoardState(p, c)
 				
                 case 'q':
 					completedTurns = quitClient(p, c)
-					fmt.Printf("completed turns: %d", completedTurns)
 					writeToFile = true
-					fmt.Printf("writeToFile = %t\n", writeToFile)
 					quit <- true
 					done <- true
 					return
@@ -177,39 +143,18 @@ func distributor(p Params, c DistributorChannels) {
         }
     }()
 
-	fmt.Println("before world")
-	fmt.Println("writeToFile: ", writeToFile)
 	var finalTurns int
 	world, finalTurns = doAllTurnsBroker(world, p)
-	fmt.Println("after world")
-	fmt.Printf("completed turns: %d\n", finalTurns)
 	if(world == nil){
-		fmt.Println("world is nil")
 		close(c.events)
 		return
 	}
 
-	fmt.Println("1")
-
-
-	// TODO: Report the final state using FinalTurnCompleteEvent.
-
-	
-	
-
-	// send an event down an events channel
-	// must implement the events channel, FinalTurnComplete is an event so must implement the event interface
-	// Make sure that the Io has finished any output before exiting.
-
-	fmt.Println(writeToFile)
 	if(writeToFile){
-		fmt.Println("writeToFile")
-		//output the state of the board after all turns have been completed as a PGM image
 		alives := calculateAliveCells(world)
 		c.events <- FinalTurnComplete{CompletedTurns: finalTurns, Alive: alives}
 		c.ioCommand <- ioOutput
 		filename = fmt.Sprintf("%dx%dx%d", p.ImageHeight, p.ImageWidth, finalTurns)
-		fmt.Println("filename: ", filename)
 		c.ioFilename <- filename
 		for y := 0; y < H; y++ {
 			for x := 0; x < W; x++ {
@@ -225,10 +170,6 @@ func distributor(p Params, c DistributorChannels) {
 		c.events <- FinalTurnComplete{CompletedTurns: finalTurns, Alive: alives}
 	}
 
-	
-
-	// if it's idle it'll return true so you can use it before reading input, for example
-	// to ensure output has saved before reading
 	c.ioCommand <- ioCheckIdle
 	<-c.ioIdle
 
@@ -236,21 +177,17 @@ func distributor(p Params, c DistributorChannels) {
 
 	ticker.Stop()
 	
-	// Close the channel to stop the SDL goroutine gracefully. Removing may cause deadlock.
-	fmt.Println("closing events")
 	close(c.events)
-	fmt.Println("events closed")
 }
 
+// pause sends pause command to server and handles state changes
 func pause(p Params,c DistributorChannels, completedTurns int) (int){
-	fmt.Println("Pausing")
 
 	client, err := getRPCClient()
 
 	if err == nil {
 		request := stubs.StateRequest{Command: "pause"}
 		response := new(stubs.StateResponse)
-
 
 		client.Call("SecretStringOperations.Pause", request, response)
 
@@ -266,59 +203,40 @@ func pause(p Params,c DistributorChannels, completedTurns int) (int){
 		}
 	}else{
 		fmt.Println("Failed to connect to server")
-		fmt.Printf("Error stack trace:\n%+v\n", err)
 		return completedTurns
 	}
 }
 
+// quitClient handles graceful shutdown of client connection
 func quitClient(p Params, c DistributorChannels) int{
-
 	fmt.Println("Quitting")
 
 	client, err := getRPCClient()
 	
 	if err == nil {
 		request := stubs.StateRequest{Command: "quit"}
-		fmt.Println("request sent")
 
 		response := new(stubs.StateResponse)
 
 		client.Call("SecretStringOperations.Quit", request, response)
 
-		fmt.Println("response received")
-
-		//fmt.Println("response: ", response)
-		fmt.Println("Turns: ", response.Turns)
-
+		/*
 		if response.World != nil {
 			fmt.Printf("World dimensions: %d x %d\n", len(response.World), len(response.World[0]))
 		} else {
 			fmt.Println("World is nil")
 		}
-
-		//alives := calculateAliveCells(response.World)
-
-		//c.events <- FinalTurnComplete{CompletedTurns: response.Turns, Alive: alives}
-
-		fmt.Println("before state change quit")
-		//c.events <- StateChange{response.Turns, Quitting}
-		fmt.Println("after state change quit")
+		*/
 
 		return response.Turns
-
-
-		//saveBoardWorld(c, p, response.World, response.Turns)
 		
 	}else{
-		fmt.Println("Failed to connect to server")
-		fmt.Printf("Error stack trace:\n%+v\n", err)
 		return 0
 	}
 }
 
+// kill sends termination signal to server after saving state
 func kill(p Params,c DistributorChannels){
-	
-	fmt.Println("Killing server")
 
 	client, err := getRPCClient()
 
@@ -331,30 +249,13 @@ func kill(p Params,c DistributorChannels){
 
 		client.Call("SecretStringOperations.Kill", request, response)
 
-		fmt.Printf("Server killed, world state saved\n")
 	}
 }
 
-
-/*
-func main() {
-	// connect to RPC server and send a request
-	server := flag.String("server", "127.0.0.1:8030", "IP:port string to connect to as server")
-	flag.Parse()
-	fmt.Println("Server: ", *server)
-	client, _ := rpc.Dial("tcp", *server)
-	defer client.Close()
-	request := stubs.Request{World: world, P: p, C: c}
-	response := new(stubs.Response)
-	client.Call(stubs.ReverseHandler, request, response)
-	fmt.Println("Responded: ")
-}
-*/
-
+// saveBoardState requests current board state from server and saves it
 func saveBoardState(p Params, c DistributorChannels) {
 	client, err := getRPCClient()
 	if err != nil {
-		fmt.Printf("RPC failed: %v\n", err)
 		return
 	}
 	request := stubs.StateRequest{Command: "save"}
@@ -363,47 +264,41 @@ func saveBoardState(p Params, c DistributorChannels) {
 	world := response.World
 	turns := response.Turns
 
-
 	c.ioCommand <- ioOutput
 	filename := fmt.Sprintf("%dx%dx%d", p.ImageHeight, p.ImageWidth, turns)
 	c.ioFilename <- filename
 	
-	// Send the current world state
 	for y := 0; y < p.ImageHeight; y++ {
 		for x := 0; x < p.ImageWidth; x++ {
 			c.ioOutput <- world[y][x]
 		}
 	}
 	
-	// Wait for IO to complete
 	c.ioCommand <- ioCheckIdle
 	<-c.ioIdle
 	
-	// Send ImageOutputComplete event
 	c.events <- ImageOutputComplete{turns, filename}	
 }
 
+// saveBoardWorld saves given world state to file
 func saveBoardWorld(c DistributorChannels, p Params, world [][]uint8, turns int) {
-	fmt.Println("saveBoardWorld")
 	c.ioCommand <- ioOutput
 	filename := fmt.Sprintf("%dx%dx%d", p.ImageHeight, p.ImageWidth, turns)
 	c.ioFilename <- filename
 	
-	// Send the current world state
 	for y := 0; y < p.ImageHeight; y++ {
 		for x := 0; x < p.ImageWidth; x++ {
 			c.ioOutput <- world[y][x]
 		}
 	}
 	
-	// Wait for IO to complete
 	c.ioCommand <- ioCheckIdle
 	<-c.ioIdle
 	
-	// Send ImageOutputComplete event
 	c.events <- ImageOutputComplete{turns, filename}	
 }
 
+// calculateAliveCellsNode requests alive cells count from server
 func calculateAliveCellsNode() (int, int) {
 	client, err := getRPCClient()
 	if err != nil {
@@ -416,21 +311,17 @@ func calculateAliveCellsNode() (int, int) {
 	return response.CellsAlive, response.Turns
 }
 
+// doAllTurnsBroker sends world state to broker for distributed processing
 func doAllTurnsBroker(world [][]uint8, p Params) ([][]uint8, int) {
-	// Connect to RPC server
-	client, err := getRPCClient()//rpc.Dial("tcp", "localhost:8030")
+	client, err := getRPCClient()
 	if err != nil {
-		// If we can't connect, fall back to local processing
 		fmt.Printf("RPC failed: %v\n", err)
 		return nil, 0
 	}
 
-	fmt.Println("Sending request to broker")
 
 	workers := 5
 
-
-	// Create request with current world state and parameters
 	request := stubs.BrokerRequest{
 		World: world,
 		Turns: p.Turns,
@@ -443,26 +334,21 @@ func doAllTurnsBroker(world [][]uint8, p Params) ([][]uint8, int) {
 
 	err = client.Call("SecretStringOperations.Start", request, response)
 	if err != nil {
-		fmt.Printf("Server connection closed\n")
-		fmt.Println("error: ", err)
 		return response.UpdatedWorld, response.Turns
 	}
 
-	fmt.Printf("exiting doAllTurnsBroker with %d turns \n", response.Turns)
 
 	return response.UpdatedWorld, response.Turns
 }
 
-// nextState calculates the next state of the board
+// nextState calculates the next state of the world according to Game of Life rules
 func nextState(world [][]uint8, p Params, c DistributorChannels) [][]uint8 {
-
 	H := p.ImageHeight
 	W := p.ImageWidth
 
-	// Create the new world state
-	toReturn := make([][]uint8, H) // create a slice with rows equal to ImageHeight
+	toReturn := make([][]uint8, H)
 	for i := 0; i < H; i++ {
-		toReturn[i] = make([]uint8, W) // initialise each row with columns equal to ImageWidth
+		toReturn[i] = make([]uint8, W)
 	}
 
 	for y := 0; y < H; y++ {
@@ -470,15 +356,12 @@ func nextState(world [][]uint8, p Params, c DistributorChannels) [][]uint8 {
 			sum := countAliveNeighbours(world, x, y, W, H)
 
 			if world[y][x] == 255 {
-				// The cell was previously alive
 				if sum < 2 || sum > 3 {
 					toReturn[y][x] = 0
 				} else if sum == 2 || sum == 3 {
-					// Keep the cell alive
 					toReturn[y][x] = 255
 				}
 			} else if world[y][x] == 0 {
-				// The cell was previously dead
 				if sum == 3 {
 					toReturn[y][x] = 255
 				} else {
@@ -490,6 +373,7 @@ func nextState(world [][]uint8, p Params, c DistributorChannels) [][]uint8 {
 	return toReturn
 }
 
+// countAliveNeighbours counts alive neighbors of a cell considering periodic boundaries
 func countAliveNeighbours(world [][]uint8, x, y, width, height int) int {
 	sum := 0
 	
@@ -509,7 +393,7 @@ func countAliveNeighbours(world [][]uint8, x, y, width, height int) int {
 	return sum
 }
 
-// calculateAliveCells returns a list of coordinates for cells that are alive
+// calculateAliveCells returns slice of Cell coordinates that are currently alive
 func calculateAliveCells(world [][]uint8) []util.Cell {
 	alives := make([]util.Cell, 0)
 	for y := 0; y < len(world); y++ {

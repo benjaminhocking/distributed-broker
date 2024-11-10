@@ -12,11 +12,13 @@ import (
 	"strings"
 )
 
+// Global variables for server operation
 var (
     listener net.Listener
     shutdown = make(chan bool)
 )
 
+// SecretStringOperations handles RPC methods and maintains game state
 type SecretStringOperations struct {
     aliveCellsChannel chan chan GameState
     worldStateChannel chan chan WorldState
@@ -26,7 +28,7 @@ type SecretStringOperations struct {
     gameRunning       bool
 }
 
-// Initialize channels when the struct is created
+// NewSecretStringOperations creates and initializes a new SecretStringOperations instance
 func NewSecretStringOperations() *SecretStringOperations {
     return &SecretStringOperations{
         aliveCellsChannel: make(chan chan GameState),
@@ -36,11 +38,13 @@ func NewSecretStringOperations() *SecretStringOperations {
     }
 }
 
+// GameState represents the current state of the game including alive cells and turn number
 type GameState struct {
     AliveCells int
     CurrentTurn int
 }
 
+// WorldState represents the complete state of the game world
 type WorldState struct {
     World       [][]uint8
     CurrentTurn int
@@ -52,25 +56,17 @@ const (
     Alive uint8 = 255
 )
 
-
 // nextState calculates the next state of the world according to Game of Life rules
 func nextState(world [][]uint8, region stubs.CoordinatePair) [][]uint8 {
-    //fmt.Printf("world: \n")
-    //for _, row := range world {
-    //    fmt.Printf("%v\n", row)
-    //}
     h, w := len(world), len(world[0])
-    //fmt.Printf("h: %v, w: %v\n", h, w)
     
-    // Initialize new world state
-    // do not update the halo region
+    // Initialize new world state without halo region
     newWorld := make([][]uint8, h-2)
     for i := range newWorld {
         newWorld[i] = make([]uint8, w-2)
     }
 
-    // Update each cell based on Game of Life rules
-    // do not update the halo region
+    // Update each cell based on Game of Life rules, excluding halo region
     for y := 1; y < h-1; y++ {
         for x := 1; x < w-1; x++ {
             neighbors := countLiveNeighbors(world, x, y, w, h)
@@ -85,33 +81,27 @@ func nextState(world [][]uint8, region stubs.CoordinatePair) [][]uint8 {
             }
         }
     }
-    //fmt.Printf("newWorld: \n")
-    //for _, row := range newWorld {
-    //    fmt.Printf("%v\n", row)
-    //}
     return newWorld
 }
 
+// NextState is an RPC method that processes the next state for a given world region
 func (s *SecretStringOperations) NextState(req stubs.WorkerRequest, res *stubs.Response) (err error) {
 	world := nextState(req.World, req.Region)
 	res.UpdatedWorld = world
 	return nil
 }
 
-// AliveCellsCount is an RPC method that returns the current count of alive cells and turn number.
-// It creates a response channel, sends it through the aliveCellsChannel to get the current game state,
-// and populates the response with the number of alive cells and current turn number.
+// AliveCellsCount is an RPC method that returns the current count of alive cells and turn number
 func (s *SecretStringOperations) AliveCellsCount(req stubs.AliveCellsCountRequest, res *stubs.AliveCellsCountResponse) (err error) {
 	responseChannel := make(chan GameState)
 	s.aliveCellsChannel <- responseChannel
 	state := <-responseChannel
 	res.CellsAlive = state.AliveCells
 	res.Turns = state.CurrentTurn
-	// func nextState(world [][]uint8, p gol.Params, c gol.DistributorChannels) [][]uint8
 	return nil
 }
 
-
+// calculateAliveCells returns a slice of Cell structs representing all alive cells in the world
 func calculateAliveCells(world [][]byte, imageWidth int, imageHeight int) []util.Cell {
 	alives := make([]util.Cell, 0)
 	for y := 0; y < imageHeight; y++ {
@@ -145,6 +135,7 @@ func countLiveNeighbors(world [][]uint8, x, y, w, h int) int {
     return count
 }
 
+// main initializes and runs the RPC server
 func main() {
 	pAddr := flag.String("port", "8030", "Port to listen on")
     flag.Parse()
@@ -154,14 +145,13 @@ func main() {
     var err error
     listener, err = net.Listen("tcp", "0.0.0.0:8030")
     if err != nil {
-        //fmt.Printf("Error starting server: %v\n", err)
         return
     }
     defer listener.Close()
     
     fmt.Printf("Server is listening on port %s...\n", *pAddr)
     
-    // Create a separate goroutine for accepting connections
+    // Handle incoming connections in a separate goroutine
     go func() {
         for {
             select {
@@ -171,7 +161,7 @@ func main() {
                 conn, err := listener.Accept()
                 if err != nil {
                     if !strings.Contains(err.Error(), "use of closed network connection") {
-                        //fmt.Printf("Accept error: %v\n", err)
+                        return
                     }
                     return
                 }
@@ -182,5 +172,4 @@ func main() {
 
     // Wait for shutdown signal
     <-shutdown
-    //fmt.Println("Server shutdown complete")
 }
