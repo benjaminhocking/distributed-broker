@@ -21,7 +21,7 @@ var (
 	listener net.Listener
 	shutdown = make(chan bool)
     // IP addresses of worker nodes
-    instances = []string{"54.242.210.78", "3.85.164.242", "3.94.171.194", "54.152.127.173", "44.203.41.196"} 
+    instances = []string{"44.212.56.54", "3.80.209.156", "18.212.12.114", "3.83.39.17", "184.72.211.183"} 
 )
 
 // dialWorker establishes RPC connection with a worker node
