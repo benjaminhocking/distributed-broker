@@ -318,7 +318,7 @@ func doAllTurnsBroker(world [][]uint8, p Params) ([][]uint8, int) {
 		fmt.Printf("RPC failed: %v\n", err)
 		return nil, 0
 	}
-
+	fmt.Println("test")
 
 	workers := 5
 
