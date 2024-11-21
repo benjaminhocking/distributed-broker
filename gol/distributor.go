@@ -33,7 +33,7 @@ var (
 func getRPCClient() (*rpc.Client, error) {
     var err error
     once.Do(func() {
-        rpcClient, err = rpc.Dial("tcp", "54.165.16.129:8030") // This is the IP of the broker
+	    rpcClient, err = rpc.Dial("tcp", "3.82.156.31:8030") // This is the IP of the broker
     })
     
     if err != nil {
